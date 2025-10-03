@@ -30,7 +30,9 @@ coverage/
 
 # nyc test coverage
 .nyc_output
-
+.adminjs
+.adminjs/bundle.js
+.adminjs/entry.js
 # OS generated files
 .DS_Store
 .DS_Store?
