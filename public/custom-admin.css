@@ -1,0 +1,109 @@
+/* AdminJS v7 Vietnamese Text Fix - Ultimate Solution */
+
+/* Override all styled-components CSS that causes text-transform */
+*[class*="NavigationElement"],
+*[class*="navigation-element"],
+*[class*="sidebar"] *,
+.sidebar-navigation *,
+.navigation-element *,
+nav[role="navigation"] *,
+[data-testid*="navigation"] *,
+[data-testid*="sidebar"] * {
+  text-transform: none !important;
+  font-family: 'Segoe UI', 'Arial Unicode MS', Arial, sans-serif !important;
+  text-rendering: optimizeQuality !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Force override AdminJS v7 styled-components generated CSS */
+body * {
+  text-transform: none !important;
+}
+
+/* Specific CSS selectors for AdminJS v7 navigation structure */
+*[class*="sc-"] {
+  text-transform: none !important;
+}
+
+/* Force font family for Vietnamese characters */
+html, body, * {
+  font-family: 'Segoe UI', 'Arial Unicode MS', Arial, sans-serif !important;
+}
+[data-css="sidebar-footer"], 
+[data-testid="sidebar-footer"] {
+  display: none !important;
+}
+
+/* flatpickr integration: make the input and calendar match AdminJS inputs */
+.adminjs-input {
+  height: 38px;
+  padding: 8px 12px;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: none;
+  font-size: 14px;
+  line-height: 20px;
+  color: rgba(0,0,0,0.85);
+}
+
+.adminjs-input:focus {
+  outline: none;
+  border-color: rgba(76,81,191,0.9);
+  box-shadow: 0 0 0 3px rgba(76,81,191,0.06);
+}
+
+/* flatpickr calendar box styling to match AdminJS card style */
+.flatpickr-calendar {
+  border-radius: 8px !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  -webkit-box-shadow: 0 6px 18px rgba(11,27,78,0.06) !important;
+  box-shadow: 0 6px 18px rgba(11,27,78,0.06) !important;
+  font-family: 'Segoe UI', Arial, sans-serif !important;
+}
+
+.flatpickr-day {
+  border-radius: 6px !important;
+  margin: 2px !important;
+  padding: 6px !important;
+}
+
+.flatpickr-day.today {
+  border: 1px solid rgba(76,81,191,0.12) !important;
+}
+
+.flatpickr-weekdaycontainer .flatpickr-weekday {
+  color: rgba(0,0,0,0.65) !important;
+  font-weight: 600;
+}
+
+.flatpickr-months .flatpickr-month { 
+  color: rgba(0,0,0,0.85) !important;
+  font-weight: 600; 
+}
+
+/* ensure calendar z-index is above Admin panels */
+.flatpickr-calendar.open { z-index: 2000 !important; }
+
+/* wrapper and trigger for flatpickr to match AdminJS input group */
+.flatpickr-admin-wrapper { align-items: center; }
+.flatpickr-admin-wrapper .flatpickr-trigger { padding: 6px; display: inline-flex; align-items: center; justify-content: center; color: rgba(0,0,0,0.55); }
+.flatpickr-admin-wrapper .flatpickr-trigger:hover { color: rgba(76,81,191,0.9); }
+.flatpickr-admin-wrapper .flatpickr-trigger svg { display:block }
+
+/* full-width input group to align with AdminJS form layout */
+.flatpickr-admin-wrapper { width: 100%; }
+.flatpickr-admin-wrapper .flatpickr-input-group { display: flex; align-items: center; gap: 6px; }
+.flatpickr-admin-wrapper .flatpickr-input { flex: 1 1 auto; width: 100%; box-sizing: border-box; }
+.flatpickr-admin-wrapper .flatpickr-trigger { background: transparent; border: 1px solid rgba(0,0,0,0.06); padding: 6px 10px; border-radius: 6px; height: 38px; display: inline-flex; align-items: center; }
+.flatpickr-admin-wrapper .flatpickr-trigger:hover { background: rgba(76,81,191,0.04); }
+
+/* label styling inside the component to match AdminJS field labels */
+.flatpickr-label {
+  display: block;
+  font-size: 13px;
+  color: rgba(0,0,0,0.7);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
