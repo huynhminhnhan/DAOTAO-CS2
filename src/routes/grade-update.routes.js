@@ -1,6 +1,7 @@
 import express from 'express';
 import GradeUpdateController from '../controllers/GradeUpdateController.js';
 import authMiddleware from '../middleware/auth.middleware.js';
+import { checkGradeEntryPermission } from '../middleware/checkTeacherPermission.js';
 
 const router = express.Router();
 

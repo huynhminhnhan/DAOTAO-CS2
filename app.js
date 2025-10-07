@@ -255,6 +255,10 @@ const startApp = async () => {
   const gradeUpdateRoutes = (await import('./src/routes/grade-update.routes.js')).default;
   app.use('/api/grades', gradeUpdateRoutes);
 
+  // Import teacher permission routes (quyền nhập điểm)
+  const teacherPermissionRoutes = (await import('./src/routes/teacher-permission.routes.js')).default;
+  app.use('/api/teacher-permissions', teacherPermissionRoutes);
+
     // 404 handler
     app.use('*', (req, res) => {
       res.status(404).json({

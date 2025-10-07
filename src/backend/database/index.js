@@ -13,8 +13,9 @@ import Notification from './models/Notification.js';
 import Enrollment from './models/Enrollment.js';
 import Cohort from './models/Cohort.js';
 import Semester from './models/Semester.js';
+import TeacherPermission from './models/TeacherPermission.js';
 
-const models = { User, Student, Subject, Class, Teacher, TeacherClassAssignment, ClassSubject, Grade, GradeHistory, GradeRetake, Notification, Enrollment, Cohort, Semester };
+const models = { User, Student, Subject, Class, Teacher, TeacherClassAssignment, ClassSubject, Grade, GradeHistory, GradeRetake, Notification, Enrollment, Cohort, Semester, TeacherPermission };
 
 Object.values(models).forEach((m) => {
   if (m && typeof m.associate === 'function') m.associate(models);
@@ -52,6 +53,7 @@ export {
   Enrollment,
   Cohort,
   Semester,
+  TeacherPermission,
   syncDatabase
 };
 

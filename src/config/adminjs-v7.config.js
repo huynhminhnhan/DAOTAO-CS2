@@ -37,6 +37,7 @@ import EnrollmentResource from '../resources/enrollment.resource.js';
 import CohortResource from '../resources/cohort.resource.js';
 import SemesterResource from '../resources/semester.resource.js';
 import GradeHistoryResource from '../resources/grade-history.resource.js';
+import TeacherPermissionResource from '../resources/teacherPermission.resource.js';
 
 export const createAdminJSConfig = () => {
   const isDevelopment = process.env.NODE_ENV === 'development';
@@ -63,6 +64,7 @@ export const createAdminJSConfig = () => {
       CohortResource,
       SemesterResource,
   GradeHistoryResource,
+      TeacherPermissionResource, // ⭐ Module mới - Gán quyền nhập điểm
     ],
     // Custom pages
     pages: pagesConfig,
