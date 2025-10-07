@@ -16,6 +16,9 @@ const GradeApiService = {
     const transformedData = enrolledStudents.map(enrollment => {
       const existingGrade = enrollment.grades && enrollment.grades.length > 0 ? enrollment.grades[0] : null;
       
+      // Kiểm tra có bản ghi trong GradeRetakes hay không
+      const hasRetake = existingGrade?.retakes && existingGrade.retakes.length > 0;
+      
       return {
         enrollmentId: enrollment.enrollmentId,
         studentId: enrollment.student.id,
@@ -23,9 +26,10 @@ const GradeApiService = {
         studentName: enrollment.student.fullName,
         email: enrollment.student.email,
         phone: enrollment.student.phone,
-        attempt: enrollment.attempt,
+        attempt: enrollment.attempt || 1,
         enrollmentStatus: enrollment.status,
         hasExistingGrade: !!existingGrade,
+        hasRetake: hasRetake, // Flag để highlight row
         gradeId: existingGrade?.id || null,
         // Return JSON objects directly for frontend
         txScore: existingGrade?.txScore || {},

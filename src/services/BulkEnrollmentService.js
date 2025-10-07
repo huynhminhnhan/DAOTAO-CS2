@@ -42,9 +42,20 @@ const BulkEnrollmentService = {
   const errors = [];
   for (const studentId of studentIds) {
     try {
-      const student = await Student.findOne({ where: { id: studentId, classId: classIdVal, status: 'active' } });
+      // Kiểm tra sinh viên tồn tại và active
+      const student = await Student.findOne({ where: { id: studentId, status: 'active' } });
       if (!student) {
-        errors.push(`Sinh viên ID ${studentId} không tồn tại hoặc không thuộc lớp này`);
+        errors.push(`Sinh viên ID ${studentId} không tồn tại hoặc không còn hoạt động`);
+        continue;
+      }
+      
+      // Kiểm tra xem lớp đăng ký có phải là lớp học lại không (classCode bắt đầu với RT)
+      const targetClass = await Class.findByPk(classIdVal);
+      const isRetakeClass = targetClass && targetClass.classCode && targetClass.classCode.startsWith('RT');
+      
+      // Nếu không phải lớp học lại, kiểm tra sinh viên có thuộc lớp này không
+      if (!isRetakeClass && student.classId !== parseInt(classIdVal)) {
+        errors.push(`Sinh viên ID ${studentId} (${student.fullName}) không thuộc lớp này (Lớp của sinh viên: ${student.classId}, Lớp đăng ký: ${classIdVal})`);
         continue;
       }
       // Tạo enrollment data
@@ -81,11 +92,20 @@ const BulkEnrollmentService = {
           note: 'Đăng ký hàng loạt qua service'
         }
       });
-      if (created) enrolledCount++; else existingCount++;
+      if (created) {
+        enrolledCount++;
+        console.log(`✅ Đăng ký mới sinh viên ${studentId}`);
+      } else {
+        existingCount++;
+        console.log(`ℹ️ Sinh viên ${studentId} đã đăng ký trước đó`);
+      }
     } catch (error) {
       errors.push(`Lỗi đăng ký sinh viên ID ${studentId}: ${error.message}`);
+      console.error(`❌ Lỗi đăng ký sinh viên ${studentId}:`, error.message);
     }
   }
+  
+  console.log('📊 Kết quả đăng ký:', { enrolledCount, existingCount, totalErrors: errors.length });
   return { enrolledCount, existingCount, errors };
   },
 

@@ -210,18 +210,45 @@ const BulkEnrollmentComponent = () => {
 
       const data = await response.json();
       
+      console.log('BulkEnroll - Response:', data);
+      
       if (data.success) {
+        const { enrolledCount = 0, existingCount = 0, errors = [] } = data;
+        const totalProcessed = enrolledCount + existingCount;
+        
+        // Tạo message chi tiết
+        let message = '';
+        if (enrolledCount > 0 && existingCount > 0) {
+          message = `✅ Đăng ký mới: ${enrolledCount} sinh viên\n⚠️ Đã đăng ký trước: ${existingCount} sinh viên`;
+        } else if (enrolledCount > 0) {
+          message = `✅ Đã đăng ký thành công cho ${enrolledCount}/${students.length} sinh viên`;
+        } else if (existingCount > 0) {
+          message = `ℹ️ Tất cả ${existingCount} sinh viên đã được đăng ký trước đó`;
+        } else {
+          message = '❌ Không có sinh viên nào được đăng ký';
+        }
+        
+        // Thêm thông tin lỗi nếu có
+        if (errors.length > 0) {
+          message += `\n\n⚠️ Có ${errors.length} lỗi:\n${errors.slice(0, 3).join('\n')}`;
+          if (errors.length > 3) {
+            message += `\n... và ${errors.length - 3} lỗi khác`;
+          }
+        }
+        
         addNotice({
-          message: `Đã đăng ký thành công cho ${data.enrolledCount}/${students.length} sinh viên`,
-          type: 'success'
+          message,
+          type: enrolledCount > 0 ? 'success' : (existingCount > 0 ? 'info' : 'warning')
         });
         
-        // Reset form
-        setSelectedClass('');
-        setSelectedSubject('');
-        setSelectedCohort('');
-        setSelectedSemester('');
-        setStudents([]);
+        // Reset form chỉ khi có sinh viên mới được đăng ký
+        if (enrolledCount > 0) {
+          setSelectedClass('');
+          setSelectedSubject('');
+          setSelectedCohort('');
+          setSelectedSemester('');
+          setStudents([]);
+        }
       } else {
         addNotice({
           message: data.message || 'Có lỗi xảy ra khi đăng ký',

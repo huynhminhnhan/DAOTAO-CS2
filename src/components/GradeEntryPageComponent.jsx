@@ -8,6 +8,7 @@ import {
   GRADE_COEFFICIENTS,
   GRADE_WEIGHTS 
 } from '../utils/gradeCalculation';
+import RetakeManagementComponent from './RetakeManagementComponent.jsx';
 
 /**
  * Grade Entry Page Component (Simplified without retake features)
@@ -27,6 +28,9 @@ const GradeEntryPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
+  
+  // State để quản lý các sinh viên được unlock (Hybrid Approach)
+  const [unlockedStudents, setUnlockedStudents] = useState(new Set());
   
   // Dynamic grade configuration
   const [gradeConfig, setGradeConfig] = useState({
@@ -411,6 +415,8 @@ const GradeEntryPage = () => {
                 finalScore: student.finalScore || '',
                 tbktScore: student.tbktScore || null,
                 tbmhScore: student.tbmhScore || null,
+                attemptNumber: student.attempt || 1,
+                hasRetake: student.hasRetake || false, // Flag từ GradeRetakes
                 letterGrade: student.letterGrade || '',
                 isPassed: student.isPassed,
                 notes: student.notes || '',
@@ -544,23 +550,62 @@ const GradeEntryPage = () => {
           finalScore: normalizeNumber(studentParams.finalScore), // Chuẩn hóa format số
           tbktScore: normalizeNumber(studentParams.tbktScore), // Chuẩn hóa format số
           tbmhScore: normalizeNumber(studentParams.tbmhScore), // Chuẩn hóa format số
+          attemptNumber: studentParams.attemptNumber || 1,
+          hasRetake: studentParams.hasRetake || false, // Flag từ GradeRetakes để highlight
+          ghiChu: studentParams.notes || '', // Map notes từ DB sang ghiChu trong state
           gradeId: studentParams.gradeId || null
         };
       });
       
-      // Update gradeConfig to accommodate existing data
+      // ⚠️ FIX: Set trực tiếp giá trị phát hiện được từ dữ liệu môn học hiện tại
+      // KHÔNG dùng Math.max với prev để tránh giữ lại cấu hình của môn học trước
       setGradeConfig(prev => ({
         ...prev,
-        txColumns: Math.max(prev.txColumns, maxTxColumns || 1),
-        dkColumns: Math.max(prev.dkColumns, maxDkColumns || 1)
+        txColumns: maxTxColumns || 1,
+        dkColumns: maxDkColumns || 1
       }));
       
       setGrades(initialGrades);
   
     } else if (!selectedSubject) {
       setGrades({});
+      // Reset gradeConfig về mặc định khi không có môn học được chọn
+      setGradeConfig(prev => ({
+        ...prev,
+        txColumns: 1,
+        dkColumns: 1
+      }));
     }
   }, [selectedSubject, students, selectedSubjectInfo]);
+
+  // Hàm xử lý unlock sinh viên
+  const handleUnlock = (studentId, studentName) => {
+    const confirmMessage = `⚠️ CẢNH BÁO: MỞ KHÓA CHỈNH SỬa\n\n` +
+      `Sinh viên: ${studentName}\n\n` +
+      `- Sửa điểm trực tiếp sẽ KHÔNG lưu lịch sử học lại/thi lại\n` +
+      `- Khuyến nghị: Dùng nút "Thi lại/Học lại" để có lịch sử\n\n` +
+      `Bạn có chắc muốn tiếp tục?`;
+    
+    if (window.confirm(confirmMessage)) {
+      setUnlockedStudents(prev => {
+        const newSet = new Set(prev);
+        newSet.add(studentId);
+        return newSet;
+      });
+      
+      // Hiển thị thông báo
+      alert(`✅ Đã mở khóa chỉnh sửa cho sinh viên: ${studentName}\n\nLưu ý: Thay đổi sẽ KHÔNG lưu lịch sử!`);
+    }
+  };
+  
+  // Hàm xử lý lock lại
+  const handleLock = (studentId) => {
+    setUnlockedStudents(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(studentId);
+      return newSet;
+    });
+  };
 
   const handleGradeChange = (studentId, field, value, scoreKey = null) => {
     setGrades(prevGrades => {
@@ -965,13 +1010,36 @@ const GradeEntryPage = () => {
               <div style={{ color: '#6c757d' }}>Đang tải danh sách sinh viên...</div>
             </div>
           ) : students.length > 0 ? (
-            <div style={{ overflowX: 'auto',maxWidth: '100%'  }}>
-              <table style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                border: '1px solid #dee2e6',
+            <>
+              {/* Legend - Hướng dẫn sử dụng */}
+              <div style={{
+                padding: '12px',
+                marginBottom: '15px',
+                backgroundColor: '#e7f3ff',
+                border: '1px solid #0d6efd',
+                borderRadius: '5px',
                 fontSize: '13px'
               }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#0d6efd' }}>
+                  📌 Hướng dẫn nhập điểm:
+                </div>
+                <ul style={{ margin: '0', paddingLeft: '20px', lineHeight: '1.8' }}>
+                  <li>✏️ <strong>Lần đầu nhập điểm:</strong> Nhập tự do vào các ô điểm</li>
+                  <li>🔒 <strong>Đã có điểm:</strong> Các ô sẽ bị khóa để bảo vệ dữ liệu</li>
+                  <li>🎯 <strong>Sửa điểm (có lịch sử):</strong> Dùng nút "Thi lại/Học lại" → Lưu đầy đủ lịch sử</li>
+                  <li>🔓 <strong>Sửa khẩn cấp (không lịch sử):</strong> Click "Mở khóa" → Sửa trực tiếp (⚠️ không lưu lịch sử)</li>
+                  <li>🔵 <strong>Row màu xanh nhạt:</strong> Sinh viên đã có học lại/thi lại</li>
+                  <li>🟡 <strong>Row màu vàng:</strong> TBKT {'<'} 5 (không được thi cuối kỳ)</li>
+                </ul>
+              </div>
+              
+              <div style={{ overflowX: 'auto',maxWidth: '100%'  }}>
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  border: '1px solid #dee2e6',
+                  fontSize: '13px'
+                }}>
                 <thead>
                   <tr style={{ backgroundColor: '#007bff', color: 'white' }}>
                     <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '80px' }}>
@@ -1002,9 +1070,6 @@ const GradeEntryPage = () => {
                     <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '80px' }}>
                       TBMH
                     </th>
-                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '80px' }}>
-                      Thi lại
-                    </th>
                     <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '120px' }}>
                       Trạng thái
                     </th>
@@ -1013,6 +1078,9 @@ const GradeEntryPage = () => {
                     </th>
                     <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '120px' }}>
                       Ghi chú
+                    </th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '200px' }}>
+                      Thi lại/Học lại
                     </th>
                   </tr>
                 </thead>
@@ -1024,8 +1092,46 @@ const GradeEntryPage = () => {
                     const tbktScore = studentGrade.tbktScore;
                     const isTbktFailed = tbktScore !== '' && tbktScore !== null && tbktScore !== undefined && Number(tbktScore) < 5;
                     
+                    // Kiểm tra có học lại/thi lại từ GradeRetakes
+                    const hasRetake = studentGrade.hasRetake === true;
+                    
+                    // ========== HYBRID APPROACH LOGIC ==========
+                    // 1. Kiểm tra đã có điểm trong database
+                    const hasExistingGrade = studentGrade.gradeId !== null && studentGrade.gradeId !== undefined;
+                    
+                    // 2. Kiểm tra điểm đã đạt
+                    const isPassed = studentGrade.tbmhScore && studentGrade.tbmhScore >= 5;
+                    
+                    // 3. Kiểm tra đã được unlock
+                    const isUnlocked = unlockedStudents.has(student.id);
+                    
+                    // 4. Quyết định lock hay không
+                    // - Chưa có điểm: Không lock (cho phép nhập tự do)
+                    // - Đã có điểm + đã unlock: Không lock
+                    // - Đã có điểm + chưa unlock: Lock
+                    const isLocked = hasExistingGrade && !isUnlocked;
+                    
+                    // 5. Lý do lock
+                    let lockReason = '';
+                    if (isLocked) {
+                      if (isPassed) {
+                        lockReason = '🔒 Điểm đã đạt - Dùng nút bên phải nếu cần xem lịch sử';
+                      } else {
+                        lockReason = '🔒 Dùng nút "Thi lại/Học lại" để cập nhật điểm và lưu lịch sử';
+                      }
+                    }
+                    // ==========================================
+                    
+                    // Xác định màu background cho row
+                    let rowBackgroundColor = 'white';
+                    if (isTbktFailed) {
+                      rowBackgroundColor = '#fff3cd'; // Vàng cho TBKT < 5
+                    } else if (hasRetake) {
+                      rowBackgroundColor = '#e7f3ff'; // Xanh nhạt cho học lại/thi lại
+                    }
+                    
                     return (
-                      <tr key={student.id || `student-${index}`} style={{ backgroundColor: isTbktFailed ? '#fff3cd' : 'white' }}>
+                      <tr key={student.id || `student-${index}`} style={{ backgroundColor: rowBackgroundColor }}>
                         {/* Mã SV */}
                         <td style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'center' }}>
                           {student.params?.studentCode || student.id}
@@ -1042,13 +1148,14 @@ const GradeEntryPage = () => {
                           const txValue = studentGrade.txScore?.[txKey] || '';
                           
                           return (
-                            <td key={txKey} style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'center' }}>
+                            <td key={txKey} style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'center', position: 'relative' }}>
                               <input
                                 type="number"
                                 min="0"
                                 max="10"
                                 step="0.01"
                                 value={txValue}
+                                disabled={isLocked}
                                 onChange={(e) => handleGradeChange(student.id, 'txScore', e.target.value, txKey)}
                                 onBlur={(e) => {
                                   const normalized = normalizeNumber(e.target.value);
@@ -1061,9 +1168,12 @@ const GradeEntryPage = () => {
                                   padding: '4px',
                                   border: '1px solid #ccc',
                                   borderRadius: '3px',
-                                  textAlign: 'center'
+                                  textAlign: 'center',
+                                  backgroundColor: isLocked ? '#f8f9fa' : 'white',
+                                  cursor: isLocked ? 'not-allowed' : 'text',
+                                  color: isLocked ? '#6c757d' : 'inherit'
                                 }}
-                                title="Nhập điểm thường xuyên"
+                                title={isLocked ? lockReason : "Nhập điểm thường xuyên"}
                               />
                             </td>
                           );
@@ -1074,13 +1184,14 @@ const GradeEntryPage = () => {
                           const dkKey = `dk${i + 1}`;
                           const dkValue = studentGrade.dkScore?.[dkKey] || '';
                           return (
-                            <td key={dkKey} style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'center' }}>
+                            <td key={dkKey} style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'center', position: 'relative' }}>
                               <input
                                 type="number"
                                 min="0"
                                 max="10"
                                 step="0.01"
                                 value={dkValue}
+                                disabled={isLocked}
                                 onChange={(e) => handleGradeChange(student.id, 'dkScore', e.target.value, dkKey)}
                                 onBlur={(e) => {
                                   const normalized = normalizeNumber(e.target.value);
@@ -1093,8 +1204,12 @@ const GradeEntryPage = () => {
                                   padding: '4px',
                                   border: '1px solid #ccc',
                                   borderRadius: '3px',
-                                  textAlign: 'center'
+                                  textAlign: 'center',
+                                  backgroundColor: isLocked ? '#f8f9fa' : 'white',
+                                  cursor: isLocked ? 'not-allowed' : 'text',
+                                  color: isLocked ? '#6c757d' : 'inherit'
                                 }}
+                                title={isLocked ? lockReason : "Nhập điểm định kỳ"}
                               />
                             </td>
                           );
@@ -1113,14 +1228,14 @@ const GradeEntryPage = () => {
                           {studentGrade.tbktScore || '-'}
                         </td>
                         {/* Điểm Thi */}
-                        <td style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'center' }}>
+                        <td style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'center', position: 'relative' }}>
                           <input
                             type="number"
                             min="0"
                             max="10"
                             step="0.01"
                             value={isTbktFailed ? '' : (studentGrade.finalScore || '')}
-                            disabled={isTbktFailed}
+                            disabled={isTbktFailed || isLocked}
                             onChange={(e) => handleGradeChange(student.id, 'finalScore', e.target.value)}
                             onBlur={(e) => {
                               // Chuẩn hóa format khi rời khỏi input
@@ -1135,10 +1250,11 @@ const GradeEntryPage = () => {
                               border: '1px solid #ccc',
                               borderRadius: '3px',
                               textAlign: 'center',
-                              backgroundColor: isTbktFailed ? '#f8f9fa' : 'white',
-                              cursor: isTbktFailed ? 'not-allowed' : 'text'
+                              backgroundColor: (isTbktFailed || isLocked) ? '#f8f9fa' : 'white',
+                              cursor: (isTbktFailed || isLocked) ? 'not-allowed' : 'text',
+                              color: isLocked ? '#6c757d' : 'inherit'
                             }}
-                            title={isTbktFailed ? 'Không thể nhập điểm thi do TBKT < 5' : ''}
+                            title={isTbktFailed ? 'Không thể nhập điểm thi do TBKT < 5' : (isLocked ? lockReason : 'Nhập điểm thi cuối kỳ')}
                           />
                         </td>
                         
@@ -1152,16 +1268,6 @@ const GradeEntryPage = () => {
                           color: (isTbktFailed ? false : studentGrade.tbmhScore) ? '#007bff' : '#6c757d'
                         }}>
                           {isTbktFailed ? '-' : (studentGrade.tbmhScore || '-')}
-                        </td>
-                        
-                        {/* Checkbox Thi lại */}
-                        <td style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'center' }}>
-                          <input
-                            type="checkbox"
-                            checked={studentGrade.thiLai || false}
-                            onChange={(e) => handleGradeChange(student.id, 'thiLai', e.target.checked)}
-                            style={{ transform: 'scale(1.2)' }}
-                          />
                         </td>
                         
                         {/* Trạng thái */}
@@ -1194,12 +1300,99 @@ const GradeEntryPage = () => {
                             }}
                           />
                         </td>
+                        
+                        {/* Thi lại/Học lại */}
+                        <td style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'left' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <RetakeManagementComponent
+                              student={{
+                                id: student.id,
+                                studentCode: student.params?.studentCode,
+                                fullName: student.params?.fullName
+                              }}
+                              gradeData={{
+                                gradeId: studentGrade.gradeId,
+                                txScore: studentGrade.txScore,
+                                dkScore: studentGrade.dkScore,
+                                tbktScore: studentGrade.tbktScore,
+                                finalScore: studentGrade.finalScore,
+                                tbmhScore: studentGrade.tbmhScore,
+                                attemptNumber: studentGrade.attemptNumber || 1
+                              }}
+                              gradeConfig={gradeConfig} // Truyền gradeConfig
+                              hasExistingGrade={hasExistingGrade} // Truyền flag đã có điểm
+                              subjectId={parseInt(selectedSubject)}
+                              onGradeUpdate={(updatedGradeData) => {
+                                console.log('Grade updated:', updatedGradeData);
+                                // Cập nhật state điểm cho sinh viên này
+                                setGrades(prevGrades => ({
+                                  ...prevGrades,
+                                  [student.id]: {
+                                    ...prevGrades[student.id],
+                                    ...updatedGradeData,
+                                    hasRetake: true // Đánh dấu đã có học lại/thi lại
+                                  }
+                                }));
+                                // Component sẽ tự động re-render với grades mới
+                              }}
+                              showDetails={false}
+                            />
+                            
+                            {/* Nút Unlock/Lock */}
+                            {hasExistingGrade && (
+                              <>
+                                {isLocked ? (
+                                  <button
+                                    onClick={() => handleUnlock(student.id, student.params?.fullName)}
+                                    style={{
+                                      padding: '4px 8px',
+                                      fontSize: '11px',
+                                      backgroundColor: '#ffc107',
+                                      color: '#000',
+                                      border: 'none',
+                                      borderRadius: '3px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title="Mở khóa để sửa điểm trực tiếp (KHÔNG lưu lịch sử)"
+                                  >
+                                    🔓 Mở khóa
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleLock(student.id)}
+                                    style={{
+                                      padding: '4px 8px',
+                                      fontSize: '11px',
+                                      backgroundColor: '#6c757d',
+                                      color: '#fff',
+                                      border: 'none',
+                                      borderRadius: '3px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title="Khóa lại để bảo vệ dữ liệu"
+                                  >
+                                    🔒 Khóa lại
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
+            </>
           ) : (
             <div style={{ textAlign: 'center', padding: '20px', color: '#6c757d' }}>
               Không có sinh viên nào để nhập điểm

@@ -19,16 +19,6 @@ export const pagesConfig = {
     }
   },
 
-  'quan-ly-hoc-lai': {
-    component: Components.AdminRetakeManagement,
-    icon: 'Repeat',
-    parent: {
-      name: 'Học tập',
-      icon: 'Book'
-    }
-  },
-
-  
   // Thêm các pages khác ở đây
   // 'dashboard-custom': {
   //   component: Components.CustomDashboard,

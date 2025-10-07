@@ -239,6 +239,10 @@ const startApp = async () => {
   const retakeRoutes = (await import('./src/routes/retake.routes.js')).default;
   app.use('/api/retake', retakeRoutes);
 
+  // Import retake management routes (new comprehensive system)
+  const retakeManagementRoutes = (await import('./src/routes/retake-management.routes.js')).default;
+  app.use('/api/retake-management', retakeManagementRoutes);
+
   // Import retake scoring routes (enhanced)
   const retakeScoringRoutes = (await import('./src/routes/retake-scoring.routes.js')).default;
   app.use('/api/retake', retakeScoringRoutes);
@@ -246,6 +250,10 @@ const startApp = async () => {
   // Import grade history routes (list/detail/revert)
   const gradeHistoryRoutes = (await import('./src/routes/grade-history.routes.js')).default;
   app.use('/', gradeHistoryRoutes);
+
+  // Import grade update routes (retake exam/course scoring)
+  const gradeUpdateRoutes = (await import('./src/routes/grade-update.routes.js')).default;
+  app.use('/api/grades', gradeUpdateRoutes);
 
     // 404 handler
     app.use('*', (req, res) => {

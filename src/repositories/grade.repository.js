@@ -1,4 +1,4 @@
-import { Enrollment, Student, Grade, Class, ClassSubject, Subject, Teacher, sequelize } from '../backend/database/index.js';
+import { Enrollment, Student, Grade, GradeRetake, Class, ClassSubject, Subject, Teacher, sequelize } from '../backend/database/index.js';
 
 const GradeRepository = {
   async findEnrollmentsWithGrades({ cohortId, classId, subjectId, semester, academicYear }) {
@@ -38,7 +38,21 @@ const GradeRepository = {
       },
       include: [
         { model: Student, as: 'student', attributes: ['id', 'studentCode', 'fullName', 'email', 'phone'] },
-        { model: Grade, as: 'grades', where: { semester, academicYear }, required: false, attributes: ['id','txScore','dkScore','finalScore','tbktScore','tbmhScore','letterGrade','isPassed','notes','createdAt','updatedAt'] }
+        { 
+          model: Grade, 
+          as: 'grades', 
+          where: { semester, academicYear }, 
+          required: false, 
+          attributes: ['id','txScore','dkScore','finalScore','tbktScore','tbmhScore','letterGrade','isPassed','notes','createdAt','updatedAt'],
+          include: [
+            {
+              model: GradeRetake,
+              as: 'retakes',
+              required: false,
+              attributes: ['id', 'retakeType']
+            }
+          ]
+        }
       ],
       order: [[{ model: Student, as: 'student' }, 'studentCode', 'ASC']]
     });

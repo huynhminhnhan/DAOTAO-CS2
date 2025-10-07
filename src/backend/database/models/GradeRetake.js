@@ -200,6 +200,12 @@ const GradeRetake = sequelize.define('GradeRetake', {
     validate: {
       is: /^\d{4}-\d{2}$/
     }
+  },
+  completed_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'completed_at',
+    comment: 'Ngày hoàn thành thi lại/học lại'
   }
 }, {
   tableName: 'GradeRetakes',

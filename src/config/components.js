@@ -18,7 +18,6 @@ const componentLoader = new ComponentLoader();
 const Components = {
   // Custom pages
   GradeEntryPage: componentLoader.add('GradeEntryPage', path.join(__dirname, '../components/GradeEntryPageComponent.jsx')),
-  AdminRetakeManagement: componentLoader.add('AdminRetakeManagement', path.join(__dirname, '../components/AdminRetakeManagement.jsx')),
   StudentImportComponent: componentLoader.add('StudentImportComponent', path.join(__dirname, '../components/StudentImportComponent.jsx')),
   BulkEnrollmentComponent: componentLoader.add('BulkEnrollmentComponent', path.join(__dirname, '../components/BulkEnrollmentComponent.jsx')),
   StudentTranscript: componentLoader.add('StudentTranscript', path.join(__dirname, '../components/StudentTranscriptComponent.jsx')),

@@ -3,7 +3,7 @@
  * Middleware xác thực và phân quyền cho giáo viên
  */
 
-const { User, Teacher, Class } = require('../backend/database');
+import { User, Teacher, Class } from '../backend/database/index.js';
 
 // Middleware kiểm tra quyền truy cập theo vai trò
 const checkRole = (allowedRoles) => {
@@ -76,7 +76,7 @@ const filterByPermission = (req, res, next) => {
   next();
 };
 
-module.exports = {
+export default {
   checkRole,
   filterByPermission
 };
