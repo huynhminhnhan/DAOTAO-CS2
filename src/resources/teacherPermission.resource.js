@@ -24,33 +24,33 @@ const teacherPermissionResource = {
       userId: {
         isVisible: { list: true, show: true, edit: true, filter: true },
         isRequired: true,
-        reference: 'User',
+        reference: 'users', // ⚠️ AdminJS resource ID là 'users' không phải 'User'
         description: 'Chọn giảng viên (chỉ hiển thị user có role=teacher)'
       },
 
       // Phạm vi quyền
       classId: {
         isVisible: { list: true, show: true, edit: true, filter: true },
-        reference: 'Class',
+        reference: 'classes', // ⚠️ AdminJS resource ID là 'classes' không phải 'Class'
         description: 'Để trống = Tất cả các lớp'
       },
 
       subjectId: {
         isVisible: { list: true, show: true, edit: true, filter: true },
-        reference: 'Subject',
+        reference: 'subjects', // ⚠️ AdminJS resource ID là 'subjects' không phải 'Subject'
         description: 'Để trống = Tất cả các môn'
       },
 
       cohortId: {
         isVisible: { list: true, show: true, edit: true, filter: true },
-        reference: 'Cohort',
+        reference: 'Cohorts', // ✅ Đúng tên resource
         description: 'Để trống = Tất cả các khóa'
       },
 
       semesterId: {
         isVisible: { list: true, show: true, edit: true, filter: true },
         isRequired: true,
-        reference: 'Semester',
+        reference: 'Semesters', // ✅ Đúng tên resource
         description: 'Học kỳ (bắt buộc)'
       },
 
@@ -94,7 +94,7 @@ const teacherPermissionResource = {
       // Audit fields
       createdBy: {
         isVisible: { list: false, show: true, edit: false, filter: false },
-        reference: 'User'
+        reference: 'users' // ⚠️ AdminJS resource ID là 'users' không phải 'User'
       },
 
       createdAt: {
