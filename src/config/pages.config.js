@@ -19,6 +19,15 @@ export const pagesConfig = {
     }
   },
 
+  'quan-ly-quyen-giang-vien': {
+    component: Components.TeacherPermissionManagement,
+    icon: 'Key',
+    parent: {
+      name: 'Quản lý hệ thống',
+      icon: 'Settings'
+    }
+  },
+
   // Thêm các pages khác ở đây
   // 'dashboard-custom': {
   //   component: Components.CustomDashboard,
