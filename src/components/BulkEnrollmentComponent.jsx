@@ -41,7 +41,7 @@ const BulkEnrollmentComponent = () => {
               console.debug('BulkEnrollmentComponent: no classes returned from admin-api/teacher-assignments', classesData);
             }
           } else {
-            const classesResponse = await fetch('/api/student-import/classes');
+            const classesResponse = await fetch('/admin-api/student-import/classes');
             classesData = await classesResponse.json();
             if (classesData.success) {
               const classOptions = classesData.data.map(cls => ({
@@ -56,7 +56,7 @@ const BulkEnrollmentComponent = () => {
         }
 
         // Fetch subjects  
-        const subjectsResponse = await fetch('/api/bulk-enrollment/subjects');
+        const subjectsResponse = await fetch('/admin-api/bulk-enrollment/subjects');
         const subjectsData = await subjectsResponse.json();
         
         if (subjectsData.success) {
@@ -68,7 +68,7 @@ const BulkEnrollmentComponent = () => {
         }
 
         // Fetch cohorts
-        const cohortsResponse = await fetch('/api/cohorts');
+        const cohortsResponse = await fetch('/admin-api/cohorts');
         const cohortsData = await cohortsResponse.json();
         if (cohortsData.success) {
           const cohortOptions = cohortsData.data.map(cohort => ({
@@ -79,7 +79,7 @@ const BulkEnrollmentComponent = () => {
         }
 
         // Fetch semesters
-        const semestersResponse = await fetch('/api/semesters');
+        const semestersResponse = await fetch('/admin-api/semesters');
         const semestersData = await semestersResponse.json();
         if (semestersData.success) {
           const semesterOptions = semestersData.data.map(semester => ({
@@ -116,7 +116,7 @@ const BulkEnrollmentComponent = () => {
 
   const fetchStudentsInClass = async () => {
     try {
-      const response = await fetch(`/api/grade/students/by-class/${selectedClass.value}`);
+      const response = await fetch(`/admin-api/grade/students/by-class/${selectedClass.value}`);
       const data = await response.json();
       if (data.success) {
         // Check if we have students array
@@ -200,7 +200,7 @@ const BulkEnrollmentComponent = () => {
     console.log('BulkEnroll - Request body:', requestBody);
     
     try {
-      const response = await fetch('/api/bulk-enrollment/enroll', {
+      const response = await fetch('/admin-api/bulk-enrollment/enroll', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

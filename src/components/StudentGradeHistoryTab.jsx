@@ -13,7 +13,7 @@ const StudentGradeHistoryTab = (props) => {
     setLoading(true);
     (async () => {
       try {
-        const resp = await fetch(`/api/grade-history?studentId=${studentId}&limit=50`, { credentials: 'same-origin' });
+        const resp = await fetch(`/admin-api/grade-history?studentId=${studentId}&limit=50`, { credentials: 'same-origin' });
         const json = await resp.json();
         
         if (json && json.success) setRows(json.data || []);
@@ -34,14 +34,14 @@ const StudentGradeHistoryTab = (props) => {
   const handleRevert = async (id) => {
     if (!confirm('Bạn có chắc muốn revert bản ghi này?')) return;
     try {
-      const resp = await fetch(`/api/grade-history/${id}/revert`, { method: 'POST', credentials: 'same-origin' });
+      const resp = await fetch(`/admin-api/grade-history/${id}/revert`, { method: 'POST', credentials: 'same-origin' });
       const json = await resp.json();
       if (json && json.success) {
         alert('Revert thành công');
         // refresh
         setLoading(true);
         try {
-          const r = await fetch(`/api/grade-history?studentId=${studentId}&limit=50`, { credentials: 'same-origin' });
+          const r = await fetch(`/admin-api/grade-history?studentId=${studentId}&limit=50`, { credentials: 'same-origin' });
           const jr = await r.json();
           setRows(jr.data || []);
         } catch (e) {

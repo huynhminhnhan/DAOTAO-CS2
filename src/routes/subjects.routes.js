@@ -3,8 +3,16 @@
  */
 import express from 'express';
 import { Subject } from '../backend/database/index.js';
+import { optionalSession } from "../backend/middleware/session-auth.js";
 
 const router = express.Router();
+
+// ✅ SECURITY NOTE: These routes use optional auth
+// Subjects are reference data needed for dropdowns/lookup
+// They work with or without authentication
+router.use(optionalSession);
+
+console.log('✅ Subjects routes configured with optional auth (public for dropdowns)');
 
 // GET /api/subjects - Lấy danh sách tất cả môn học
 router.get('/subjects', async (req, res) => {

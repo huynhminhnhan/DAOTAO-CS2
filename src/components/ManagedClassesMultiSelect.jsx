@@ -14,7 +14,7 @@ const ManagedClassesMultiSelect = (props) => {
     (async () => {
   try {
   // Prefer admin-only endpoint (served without JWT) for AdminJS components
-  const endpoint = window && window.location && window.location.pathname && window.location.pathname.startsWith('/admin') ? '/admin-api/classes' : '/api/student-import/classes';
+  const endpoint = window && window.location && window.location.pathname && window.location.pathname.startsWith('/admin') ? '/admin-api/classes' : '/admin-api/student-import/classes';
   const response = await fetch(endpoint);
         const payload = await response.json();
         if (payload && payload.success && Array.isArray(payload.data)) {

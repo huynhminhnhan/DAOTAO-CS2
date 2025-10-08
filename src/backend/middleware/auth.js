@@ -3,6 +3,7 @@ import { User } from '../database/index.js';
 
 /**
  * Middleware xác thực JWT token
+ * ✅ ENHANCED: Added security logging for failed authentication attempts
  */
 const authenticateToken = async (req, res, next) => {
   try {
@@ -10,6 +11,9 @@ const authenticateToken = async (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
+      // ✅ LOG: No token provided
+      console.warn(`[AUTH] 401 - No token: ${req.method} ${req.path} from ${req.ip}`);
+      
       return res.status(401).json({
         success: false,
         message: 'Access token is required'
@@ -19,6 +23,9 @@ const authenticateToken = async (req, res, next) => {
     // Xác thực token
     const decoded = verifyAccessToken(token);
     if (!decoded) {
+      // ✅ LOG: Invalid token
+      console.warn(`[AUTH] 403 - Invalid token: ${req.method} ${req.path} from ${req.ip}`);
+      
       return res.status(403).json({
         success: false,
         message: 'Invalid or expired access token'
@@ -28,6 +35,9 @@ const authenticateToken = async (req, res, next) => {
     // Kiểm tra user còn tồn tại và active
     const user = await User.findByPk(decoded.id);
     if (!user || user.status !== 'active') {
+      // ✅ LOG: User not found or inactive
+      console.warn(`[AUTH] 403 - User inactive: ${decoded.email} - ${req.method} ${req.path}`);
+      
       return res.status(403).json({
         success: false,
         message: 'User not found or inactive'
@@ -38,7 +48,9 @@ const authenticateToken = async (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
+    // ✅ LOG: Error
+    console.error(`[AUTH] 500 - Error: ${error.message} - ${req.method} ${req.path}`);
+    
     return res.status(500).json({
       success: false,
       message: 'Internal server error during authentication'
@@ -48,11 +60,13 @@ const authenticateToken = async (req, res, next) => {
 
 /**
  * Middleware phân quyền theo role
+ * ✅ ENHANCED: Added logging for access denied
  * @param {Array} allowedRoles - Danh sách role được phép
  */
 const authorizeRoles = (allowedRoles = []) => {
   return (req, res, next) => {
     if (!req.user) {
+      console.warn(`[AUTHZ] 401 - No user in request: ${req.method} ${req.path}`);
       return res.status(401).json({
         success: false,
         message: 'Authentication required'
@@ -62,9 +76,13 @@ const authorizeRoles = (allowedRoles = []) => {
     if (allowedRoles.length === 0 || allowedRoles.includes(req.user.role)) {
       next();
     } else {
+      // ✅ LOG: Access denied due to insufficient role
+      console.warn(`[AUTHZ] 403 - Role denied: ${req.user.email} (${req.user.role}) tried to access ${req.method} ${req.path} - Required: ${allowedRoles.join(', ')}`);
+      
       return res.status(403).json({
         success: false,
-        message: `Access denied. Required roles: ${allowedRoles.join(', ')}`
+        message: `Access denied. Required roles: ${allowedRoles.join(', ')}`,
+        userRole: req.user.role
       });
     }
   };

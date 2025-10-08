@@ -179,6 +179,25 @@ const startApp = async () => {
       next();
     });
 
+    // ✅ SECURITY: Add request logging middleware
+    app.use((req, res, next) => {
+      const start = Date.now();
+      
+      // Log when response finishes
+      res.on('finish', () => {
+        const duration = Date.now() - start;
+        const user = req.user ? `${req.user.email} (${req.user.role})` : 'anonymous';
+        const session = req.session?.adminUser ? `AdminJS:${req.session.adminUser.email}` : 'none';
+        
+        // Only log API routes (skip static files)
+        if (req.path.startsWith('/api') || req.path.startsWith('/admin-api')) {
+          console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms - User: ${user} - Session: ${session}`);
+        }
+      });
+      
+      next();
+    });
+
     // Homepage
     app.get('/', (req, res) => {
       // If the user is not authenticated via AdminJS session, redirect to Admin login
@@ -189,93 +208,11 @@ const startApp = async () => {
       }
     });
 
-    // Health check API
-    app.get('/api/health', (req, res) => {
-      res.json({
-        success: true,
-        message: 'Student Management System API is running',
-        timestamp: new Date().toISOString(),
-        version: '2.0.0',
-        environment: process.env.NODE_ENV || 'development',
-        database: 'SQLite connected',
-        adminjs: 'Configured and running',
-        architecture: 'AdminJS Official Template - Modular Structure'
-      });
-    });
-
-  // Protect all /api routes with JWT authentication
-  // Public routes (like /api/health) should be registered before this middleware
-  // Dynamic import to support CJS middleware in this ESM file
-  const authModule = await import('./src/backend/middleware/auth.js');
-  const authMiddleware = authModule.default || authModule;
-  const { authenticateToken } = authMiddleware;
-  //app.use('/api', authenticateToken);
-
-  // Import student routes
-  const studentImportRoutes = (await import('./src/routes/student-import.routes.js')).default;
-  app.use('/api/student-import', studentImportRoutes);
-
-  // Import grade routes
-  const gradeRoutes = (await import('./src/routes/grade.routes.js')).default;
-  app.use('/api/grade', gradeRoutes);
-
-  // Import bulk enrollment routes
-  const bulkEnrollmentRoutes = (await import('./src/routes/bulk-enrollment.routes.js')).default;
-  app.use('/api/bulk-enrollment', bulkEnrollmentRoutes);
-
-  // Import academic routes (cohorts, semesters)
-  const academicRoutes = (await import('./src/routes/academic.routes.js')).default;
-  app.use('/api', academicRoutes);
-
-  // Import subjects routes
-  const subjectsRoutes = (await import('./src/routes/subjects.routes.js')).default;
-  app.use('/api', subjectsRoutes);
-
-  // Import student transcript routes
-  const studentTranscriptRoutes = (await import('./src/routes/student-transcript.routes.js')).default;
-  app.use('/api', studentTranscriptRoutes);
-
-  // Import retake routes
-  const retakeRoutes = (await import('./src/routes/retake.routes.js')).default;
-  app.use('/api/retake', retakeRoutes);
-
-  // Import retake management routes (new comprehensive system)
-  const retakeManagementRoutes = (await import('./src/routes/retake-management.routes.js')).default;
-  app.use('/api/retake-management', retakeManagementRoutes);
-
-  // Import retake scoring routes (enhanced)
-  const retakeScoringRoutes = (await import('./src/routes/retake-scoring.routes.js')).default;
-  app.use('/api/retake', retakeScoringRoutes);
-
-  // Import grade history routes (list/detail/revert)
-  const gradeHistoryRoutes = (await import('./src/routes/grade-history.routes.js')).default;
-  app.use('/', gradeHistoryRoutes);
-
-  // Import grade update routes (retake exam/course scoring)
-  const gradeUpdateRoutes = (await import('./src/routes/grade-update.routes.js')).default;
-  app.use('/api/grades', gradeUpdateRoutes);
-
-  // Import teacher permission routes (quyền nhập điểm)
-  const teacherPermissionRoutes = (await import('./src/routes/teacher-permission.routes.js')).default;
-  app.use('/api/teacher-permissions', teacherPermissionRoutes);
-
-    // 404 handler
-    app.use('*', (req, res) => {
-      res.status(404).json({
-        success: false,
-        message: 'Route not found',
-        path: req.originalUrl
-      });
-    });
-
-    // Simple error handler
-    app.use((err, req, res, next) => {
-      console.error('Error occurred:', err);
-      res.status(err.statusCode || 500).json({
-        success: false,
-        message: err.message || 'Internal server error'
-      });
-    });
+    // ==========================================
+    // SETUP ALL ROUTES (Centralized)
+    // ==========================================
+    const { setupRoutes } = await import('./src/routes/index.js');
+    await setupRoutes(app);
 
     const PORT = process.env.PORT || 3000;
     const HOST = process.env.HOST || 'localhost';

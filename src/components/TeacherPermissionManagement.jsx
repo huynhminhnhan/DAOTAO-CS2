@@ -9,11 +9,10 @@ import { ApiClient, useNotice } from 'adminjs';
 
 const TeacherPermissionManagement = () => {
   const [users, setUsers] = useState([]);
-  const [classes, setClasses] = useState([]); // Tất cả classes
-  const [subjects, setSubjects] = useState([]); // Tất cả subjects
-  const [cohorts, setCohorts] = useState([]);
+  const [classes, setClasses] = useState([]); // Classes theo cohort đã chọn
+  const [subjects, setSubjects] = useState([]); // Subjects theo class đã chọn
+  const [cohorts, setCohorts] = useState([]); // Tất cả cohorts
   const [semesters, setSemesters] = useState([]); // Tất cả semesters
-  const [enrollments, setEnrollments] = useState([]); // Tất cả enrollments
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState('');
@@ -32,7 +31,7 @@ const TeacherPermissionManagement = () => {
   const sendNotice = useNotice();
   const api = new ApiClient();
 
-  // Load dữ liệu ban đầu
+  // Load dữ liệu ban đầu (users, cohorts, semesters)
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -53,50 +52,50 @@ const TeacherPermissionManagement = () => {
       );
       setUsers(teacherUsers);
 
-      // Load classes
-      const classesResponse = await api.resourceAction({
-        resourceId: 'classes',
-        actionName: 'list',
-        params: {}
-      });
-      setClasses(classesResponse.data.records || []);
+      // Load cohorts từ API endpoint (giống GradeEntryPageComponent)
+      console.log('Loading cohorts...');
+      const endpoint = '/admin-api/cohorts';
+      const cohortResponse = await fetch(endpoint, { credentials: 'include' });
+      const cohortData = await cohortResponse.json();
+      
+      if (cohortData.success) {
+        console.log('✅ Cohorts loaded:', cohortData.data.length);
+        
+        const validCohorts = cohortData.data.map(cohort => {
+          const cohortId = parseInt(cohort.cohortId);
+          if (isNaN(cohortId)) {
+            console.warn('⚠️ Invalid cohort ID:', cohort);
+            return null;
+          }
+          return {
+            cohortId: cohortId,
+            name: cohort.name,
+            startYear: cohort.startYear,
+            endYear: cohort.endYear
+          };
+        }).filter(Boolean);
+        
+        setCohorts(validCohorts);
+      } else {
+        console.error('❌ Failed to load cohorts:', cohortData.message);
+        sendNotice({ message: 'Không thể tải danh sách khóa học: ' + cohortData.message, type: 'error' });
+      }
 
-      // Load subjects
-      const subjectsResponse = await api.resourceAction({
-        resourceId: 'subjects',
-        actionName: 'list',
-        params: {}
-      });
-      setSubjects(subjectsResponse.data.records || []);
-
-      // Load cohorts
-      const cohortsResponse = await api.resourceAction({
-        resourceId: 'Cohorts',
-        actionName: 'list',
-        params: {}
-      });
-      setCohorts(cohortsResponse.data.records || []);
-
-      // Load semesters
+      // Load semesters (giữ nguyên từ AdminJS)
       const semestersResponse = await api.resourceAction({
         resourceId: 'Semesters',
         actionName: 'list',
         params: {}
       });
-      setSemesters(semestersResponse.data.records || []);
-
-      // Load enrollments để lấy danh sách môn học theo lớp
-      const enrollmentsResponse = await api.resourceAction({
-        resourceId: 'Enrollments',
-        actionName: 'list',
-        params: {}
-      });
-      setEnrollments(enrollmentsResponse.data.records || []);
+      const loadedSemesters = semestersResponse.data.records || [];
+      console.log('✅ Semesters loaded:', loadedSemesters.length);
+      console.log('📋 Sample semester:', loadedSemesters[0]);
+      setSemesters(loadedSemesters);
 
       setLoading(false);
     } catch (error) {
       console.error('Error loading data:', error);
-      sendNotice({ message: 'Lỗi khi tải dữ liệu', type: 'error' });
+      sendNotice({ message: 'Lỗi khi tải dữ liệu: ' + error.message, type: 'error' });
       setLoading(false);
     }
   };
@@ -116,10 +115,92 @@ const TeacherPermissionManagement = () => {
         }
       });
 
-      setPermissions(response.data.records || []);
+      const loadedPermissions = response.data.records || [];
+      setPermissions(loadedPermissions);
+      
+      // Load all classes và subjects cần thiết để display
+      await loadDataForPermissions(loadedPermissions);
+      
     } catch (error) {
       console.error('Error loading permissions:', error);
       sendNotice({ message: 'Lỗi khi tải quyền của user', type: 'error' });
+    }
+  };
+  
+  // Load classes và subjects cần thiết cho permissions display
+  const loadDataForPermissions = async (permissions) => {
+    try {
+      // Lấy unique cohortIds và classIds từ permissions
+      const cohortIds = [...new Set(permissions.map(p => p.params.cohortId).filter(id => id))];
+      const classIds = [...new Set(permissions.map(p => p.params.classId).filter(id => id))];
+      
+      // Load classes cho các cohorts
+      const allClasses = [];
+      for (const cohortId of cohortIds) {
+        const response = await fetch(`/admin-api/classes/by-cohort/${cohortId}`, { 
+          credentials: 'include' 
+        });
+        const data = await response.json();
+        if (data.success) {
+          const validClasses = data.data.map(cls => ({
+            id: parseInt(cls.id),
+            cohortId: parseInt(cohortId),
+            className: cls.className,
+            classCode: cls.classCode
+          })).filter(c => !isNaN(c.id));
+          allClasses.push(...validClasses);
+        }
+      }
+      
+      // Load subjects cho các classes
+      const allSubjects = [];
+      for (const classId of classIds) {
+        const response = await fetch(`/admin-api/subjects/by-class/${classId}`, { 
+          credentials: 'include' 
+        });
+        const data = await response.json();
+        if (data.success && data.data) {
+          const subjects = data.data.map(cs => {
+            const subject = cs.subject;
+            return {
+              id: parseInt(subject.id || subject.subjectId),
+              classId: parseInt(classId),
+              subjectName: subject.subjectName,
+              subjectCode: subject.subjectCode
+            };
+          }).filter(s => !isNaN(s.id));
+          allSubjects.push(...subjects);
+        }
+      }
+      
+      // Merge vào state hiện tại (không overwrite)
+      setClasses(prevClasses => {
+        const merged = [...prevClasses];
+        allClasses.forEach(cls => {
+          if (!merged.find(c => c.id === cls.id)) {
+            merged.push(cls);
+          }
+        });
+        return merged;
+      });
+      
+      setSubjects(prevSubjects => {
+        const merged = [...prevSubjects];
+        allSubjects.forEach(subj => {
+          if (!merged.find(s => s.id === subj.id)) {
+            merged.push(subj);
+          }
+        });
+        return merged;
+      });
+      
+      console.log('✅ Loaded data for permissions display:', {
+        classes: allClasses.length,
+        subjects: allSubjects.length
+      });
+      
+    } catch (error) {
+      console.error('Error loading data for permissions:', error);
     }
   };
 
@@ -145,51 +226,260 @@ const TeacherPermissionManagement = () => {
     setPermissionList(newList);
   };
 
+  // Load classes khi cohort được chọn trong bất kỳ permission nào
+  useEffect(() => {
+    const loadClassesForPermissions = async () => {
+      // Lấy tất cả cohortId đã được chọn
+      const selectedCohortIds = [...new Set(
+        permissionList
+          .map(perm => perm.cohortId)
+          .filter(id => id)
+      )];
+      
+      console.log('🔄 useEffect triggered - Selected cohort IDs:', selectedCohortIds);
+      
+      if (selectedCohortIds.length === 0) {
+        console.log('⚠️ No cohort selected, clearing classes');
+        setClasses([]);
+        return;
+      }
+      
+      // Load classes cho tất cả cohort đã chọn
+      try {
+        const allClasses = [];
+        
+        for (const cohortId of selectedCohortIds) {
+          console.log('📡 Loading classes for cohort:', cohortId);
+          const endpoint = `/admin-api/classes/by-cohort/${cohortId}`;
+          const response = await fetch(endpoint, { credentials: 'include' });
+          const data = await response.json();
+          
+          console.log('📥 Response data:', data);
+          
+          if (data.success) {
+            console.log('✅ Classes received:', data.data.length);
+            const validClasses = data.data.map(cls => {
+              const classId = parseInt(cls.id);
+              if (isNaN(classId)) {
+                console.warn('⚠️ Invalid class ID:', cls);
+                return null;
+              }
+              return {
+                id: classId,
+                cohortId: parseInt(cohortId), // Lưu cohortId để filter (convert to int)
+                className: cls.className,
+                classCode: cls.classCode,
+                academicYear: cls.academicYear,
+                semester: cls.semester,
+                isRetakeClass: cls.isRetakeClass || false
+              };
+            }).filter(Boolean);
+            
+            console.log('✅ Valid classes after processing:', validClasses.length);
+            allClasses.push(...validClasses);
+          } else {
+            console.error('❌ Failed to load classes:', data.message);
+          }
+        }
+        
+        console.log('✅ Total classes loaded:', allClasses.length);
+        console.log('📋 Classes array:', allClasses);
+        setClasses(allClasses);
+      } catch (error) {
+        console.error('❌ Error loading classes:', error);
+        sendNotice({ message: 'Không thể tải danh sách lớp: ' + error.message, type: 'error' });
+      }
+    };
+    
+    loadClassesForPermissions();
+  }, [permissionList.map(p => p.cohortId).join(',')]); // Trigger khi cohortId thay đổi
+
+  // Load subjects khi class được chọn trong bất kỳ permission nào
+  useEffect(() => {
+    const loadSubjectsForPermissions = async () => {
+      // Lấy tất cả classId đã được chọn
+      const selectedClassIds = [...new Set(
+        permissionList
+          .map(perm => perm.classId)
+          .filter(id => id)
+      )];
+      
+      console.log('🔄 useEffect (subjects) triggered - Selected class IDs:', selectedClassIds);
+      
+      if (selectedClassIds.length === 0) {
+        console.log('⚠️ No class selected, clearing subjects');
+        setSubjects([]);
+        return;
+      }
+      
+      // Load subjects cho tất cả class đã chọn
+      try {
+        const allSubjects = [];
+        
+        for (const classId of selectedClassIds) {
+          console.log('📡 Loading subjects for class:', classId);
+          const response = await fetch(`/admin-api/subjects/by-class/${classId}`, { 
+            credentials: 'include' 
+          });
+          const data = await response.json();
+          
+          console.log('📥 Subjects response for class', classId, ':', data);
+          
+          if (data.success && data.data) {
+            console.log('✅ Subjects received:', data.data.length);
+            console.log('📋 Sample classSubject:', data.data[0]);
+            
+            const subjects = data.data.map(classSubject => {
+              const subject = classSubject.subject;
+              const subjectId = parseInt(subject.id || subject.subjectId);
+              
+              if (isNaN(subjectId)) {
+                console.warn('⚠️ Invalid subject ID:', subject);
+                return null;
+              }
+              
+              // Format giống GradeEntryPageComponent
+              return {
+                id: subjectId,
+                classId: parseInt(classId), // Lưu classId để filter (convert to int)
+                subjectCode: subject.subjectCode,
+                subjectName: subject.subjectName,
+                credits: subject.credits,
+                description: subject.description,
+                category: subject.category,
+                isRequired: subject.isRequired
+              };
+            }).filter(Boolean);
+            
+            console.log('✅ Valid subjects after processing:', subjects.length);
+            allSubjects.push(...subjects);
+          } else {
+            console.warn('⚠️ No subjects found for class:', classId, 'or response failed');
+          }
+        }
+        
+        // Remove duplicates based on subjectId (một môn có thể có trong nhiều lớp)
+        const uniqueSubjects = allSubjects.reduce((acc, subject) => {
+          if (!acc.find(s => s.id === subject.id)) {
+            acc.push(subject);
+          }
+          return acc;
+        }, []);
+        
+        console.log('✅ Total unique subjects loaded:', uniqueSubjects.length);
+        console.log('📋 Subjects array:', uniqueSubjects);
+        setSubjects(uniqueSubjects);
+      } catch (error) {
+        console.error('❌ Error loading subjects:', error);
+        sendNotice({ message: 'Không thể tải danh sách môn học: ' + error.message, type: 'error' });
+      }
+    };
+    
+    loadSubjectsForPermissions();
+  }, [permissionList.map(p => p.classId).join(',')]); // Trigger khi classId thay đổi
+
   // Update permission trong list với cascade logic
+  // Pattern theo GradeEntryPageComponent: tạo object mới hoàn toàn để React nhận biết thay đổi
   const updatePermission = (index, field, value) => {
-    const newList = [...permissionList];
-    newList[index][field] = value;
-
-    // Cascade logic
-    if (field === 'cohortId') {
-      // Reset các field phụ thuộc khi đổi khóa
-      newList[index].semesterId = '';
-      newList[index].classId = '';
-      newList[index].subjectId = '';
-    } else if (field === 'classId') {
-      // Reset môn học khi đổi lớp
-      newList[index].subjectId = '';
-    }
-
-    setPermissionList(newList);
+    console.log(`🔄 updatePermission: index=${index}, field=${field}, value=${value}`);
+    
+    setPermissionList(prevList => {
+      const newList = prevList.map((perm, i) => {
+        if (i !== index) return perm;
+        
+        // Tạo object mới hoàn toàn (không mutate object cũ)
+        let newPerm = { ...perm, [field]: value };
+        
+        // Cascade logic: reset các field phụ thuộc
+        if (field === 'cohortId') {
+          console.log(`  ↪️ Reset semesterId, classId, subjectId vì cohortId changed`);
+          newPerm = { ...newPerm, semesterId: '', classId: '', subjectId: '' };
+        } else if (field === 'classId') {
+          console.log(`  ↪️ Reset subjectId vì classId changed`);
+          newPerm = { ...newPerm, subjectId: '' };
+        }
+        
+        console.log(`  ✅ New permission object:`, newPerm);
+        return newPerm;
+      });
+      
+      console.log(`📋 New permissionList:`, newList);
+      return newList;
+    });
   };
 
   // Lấy danh sách học kỳ theo khóa
   const getFilteredSemesters = (cohortId) => {
-    if (!cohortId) return semesters;
-    return semesters.filter(sem => sem.params.cohort_id === cohortId);
+    if (!cohortId) return [];
+    
+    console.log('🔍 Filtering semesters for cohortId:', cohortId, 'Type:', typeof cohortId);
+    console.log('📋 Total semesters:', semesters.length);
+    
+    if (semesters[0]) {
+      console.log('📋 Sample semester structure:', JSON.stringify({
+        id: semesters[0].id,
+        params: semesters[0].params
+      }, null, 2));
+    }
+    
+    const cohortIdInt = parseInt(cohortId, 10);
+    
+    // Try multiple possible field names for cohortId
+    const filtered = semesters.filter(sem => {
+      const semCohortId = sem.params?.cohortId 
+        || sem.params?.cohort_id 
+        || sem.cohortId;
+      
+      const semCohortIdInt = parseInt(semCohortId, 10);
+      const match = semCohortIdInt === cohortIdInt;
+      
+      if (match) {
+        console.log('✅ Matched semester:', {
+          name: sem.params?.name || sem.params?.semesterName,
+          semCohortId,
+          cohortIdInt
+        });
+      }
+      
+      return match;
+    });
+    
+    console.log('✅ Filtered semesters count:', filtered.length);
+    return filtered;
   };
 
-  // Lấy danh sách lớp học theo khóa
+  // Lấy danh sách lớp học theo khóa (từ state classes đã được load)
   const getFilteredClasses = (cohortId) => {
-    if (!cohortId) return classes;
-    return classes.filter(cls => cls.params.cohort_id === cohortId);
+    if (!cohortId) return [];
+    
+    console.log('🔍 Filtering classes for cohortId:', cohortId);
+    console.log('📋 All classes:', classes);
+    
+    const filtered = classes.filter(cls => cls.cohortId === parseInt(cohortId));
+    
+    console.log('✅ Filtered classes:', filtered.length);
+    return filtered;
   };
 
-  // Lấy danh sách môn học theo lớp (từ enrollments)
+  // Lấy danh sách môn học theo lớp (từ state subjects đã được load)
   const getFilteredSubjects = (classId) => {
-    if (!classId) return subjects;
+    if (!classId) return [];
     
-    // Lấy tất cả subjectId từ enrollments của lớp này
-    const subjectIds = enrollments
-      .filter(enr => enr.params.classId === parseInt(classId))
-      .map(enr => enr.params.subjectId);
+    console.log('🔍 Filtering subjects for classId:', classId);
+    console.log('📋 All subjects:', subjects);
+    console.log('📋 Sample subject structure:', subjects[0]);
     
-    // Loại bỏ duplicate
-    const uniqueSubjectIds = [...new Set(subjectIds)];
+    const filtered = subjects.filter(subj => subj.classId === parseInt(classId));
     
-    // Lọc subjects
-    return subjects.filter(subj => uniqueSubjectIds.includes(subj.params.id));
+    console.log('✅ Filtered subjects:', filtered.length);
+    return filtered;
+  };
+
+  // Helper function để parse integer hoặc trả về null
+  const parseIntOrNull = (value) => {
+    if (!value || value === '') return null;
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) ? null : parsed;
   };
 
   // Lưu tất cả permissions
@@ -202,6 +492,10 @@ const TeacherPermissionManagement = () => {
     // Validate
     for (let i = 0; i < permissionList.length; i++) {
       const perm = permissionList[i];
+      if (!perm.cohortId) {
+        sendNotice({ message: `Permission ${i + 1}: Khóa học là bắt buộc`, type: 'error' });
+        return;
+      }
       if (!perm.semesterId) {
         sendNotice({ message: `Permission ${i + 1}: Học kỳ là bắt buộc`, type: 'error' });
         return;
@@ -215,23 +509,53 @@ const TeacherPermissionManagement = () => {
     try {
       setLoading(true);
 
-      // Tạo từng permission
+      // Tạo từng permission qua custom API endpoint
       for (const perm of permissionList) {
-        await api.resourceAction({
-          resourceId: 'teacher_permissions',
-          actionName: 'new',
-          params: {
-            userId: selectedUser,
-            semesterId: perm.semesterId,
-            classId: perm.classId || null,
-            subjectId: perm.subjectId || null,
-            cohortId: perm.cohortId || null,
-            validFrom: perm.validFrom,
-            validTo: perm.validTo,
-            status: 'active',
-            notes: perm.notes
-          }
+        // Convert tất cả IDs sang integer để tránh lỗi MySQL type mismatch
+        const permissionData = {
+          userId: parseInt(selectedUser, 10),
+          semesterId: parseInt(perm.semesterId, 10),
+          classId: parseIntOrNull(perm.classId),
+          subjectId: parseIntOrNull(perm.subjectId),
+          cohortId: parseIntOrNull(perm.cohortId),
+          validFrom: perm.validFrom,
+          validTo: perm.validTo,
+          status: 'active',
+          notes: perm.notes || ''
+        };
+
+        // Debug: Log data và types
+        console.log('📤 Sending permission data:', permissionData);
+        console.log('📊 Data types:', {
+          userId: typeof permissionData.userId,
+          semesterId: typeof permissionData.semesterId,
+          classId: typeof permissionData.classId,
+          subjectId: typeof permissionData.subjectId,
+          cohortId: typeof permissionData.cohortId
         });
+
+        // Validate required IDs are valid numbers
+        if (isNaN(permissionData.userId)) {
+          throw new Error('User ID không hợp lệ');
+        }
+        if (isNaN(permissionData.semesterId)) {
+          throw new Error('Semester ID không hợp lệ');
+        }
+
+        const response = await fetch('/admin-api/teacher-permissions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify(permissionData)
+        });
+
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to save permission');
+        }
       }
 
       sendNotice({ message: 'Đã lưu quyền thành công!', type: 'success' });
@@ -336,6 +660,7 @@ const TeacherPermissionManagement = () => {
           <Box as="table" width="100%" style={{ borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
+                <th style={{ padding: '12px', textAlign: 'left' }}>Khóa</th>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Học kỳ</th>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Lớp</th>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Môn</th>
@@ -345,41 +670,68 @@ const TeacherPermissionManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {permissions.map(perm => (
-                <tr key={perm.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '12px' }}>{perm.populated?.Semester?.semesterName || perm.params.semesterId}</td>
-                  <td style={{ padding: '12px' }}>
-                    {perm.params.classId ? (perm.populated?.Class?.className || perm.params.classId) : <em>Tất cả</em>}
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    {perm.params.subjectId ? (perm.populated?.Subject?.subjectName || perm.params.subjectId) : <em>Tất cả</em>}
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    {perm.params.validFrom} → {perm.params.validTo}
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    <span style={{
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      background: perm.params.status === 'active' ? '#d4edda' : '#f8d7da',
-                      color: perm.params.status === 'active' ? '#155724' : '#721c24'
-                    }}>
-                      {perm.params.status === 'active' ? '✅ Active' : '❌ ' + perm.params.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px', textAlign: 'center' }}>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => deleteExistingPermission(perm.id)}
-                    >
-                      Xóa
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+              {permissions.map(perm => {
+                // Helper function để tìm tên từ ID
+                const getCohortName = (cohortId) => {
+                  if (!cohortId) return <em>Tất cả</em>;
+                  const cohort = cohorts.find(c => c.cohortId === cohortId);
+                  return cohort ? cohort.name : `Khóa #${cohortId}`;
+                };
+                
+                const getSemesterName = (semesterId) => {
+                  if (!semesterId) return <em>Tất cả</em>;
+                  const semester = semesters.find(s => {
+                    const sid = s.params?.semesterId || s.params?.semester_id || s.semesterId;
+                    return sid === semesterId;
+                  });
+                  return semester ? (semester.params?.name || semester.params?.semesterName || semester.name) : `Học kỳ #${semesterId}`;
+                };
+                
+                const getClassName = (classId) => {
+                  if (!classId) return <em>Tất cả</em>;
+                  const cls = classes.find(c => c.id === classId);
+                  return cls ? cls.className : `Lớp #${classId}`;
+                };
+                
+                const getSubjectName = (subjectId) => {
+                  if (!subjectId) return <em>Tất cả</em>;
+                  const subject = subjects.find(s => s.id === subjectId);
+                  return subject ? subject.subjectName : `Môn #${subjectId}`;
+                };
+                
+                return (
+                  <tr key={perm.id} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '12px' }}>{getCohortName(perm.params.cohortId)}</td>
+                    <td style={{ padding: '12px' }}>{getSemesterName(perm.params.semesterId)}</td>
+                    <td style={{ padding: '12px' }}>{getClassName(perm.params.classId)}</td>
+                    <td style={{ padding: '12px' }}>{getSubjectName(perm.params.subjectId)}</td>
+                    <td style={{ padding: '12px' }}>
+                      {perm.params.validFrom} → {perm.params.validTo}
+                    </td>
+                    <td style={{ padding: '12px' }}>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        background: perm.params.status === 'active' ? '#d4edda' : '#f8d7da',
+                        color: perm.params.status === 'active' ? '#155724' : '#721c24'
+                      }}>
+                        {perm.params.status === 'active' ? '✅ Active' : '❌ ' + perm.params.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => deleteExistingPermission(perm.id)}
+                      >
+                        Xóa
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </Box>
         </Box>
@@ -413,7 +765,7 @@ const TeacherPermissionManagement = () => {
               <Box display="grid" gridTemplateColumns="1fr 1fr" gridGap="md">
                 {/* Khóa */}
                 <Box>
-                  <Label>🎓 Khóa (để trống = tất cả)</Label>
+                  <Label required>🎓 Khóa</Label>
                   <select
                     value={perm.cohortId}
                     onChange={(e) => updatePermission(index, 'cohortId', e.target.value)}
@@ -426,10 +778,10 @@ const TeacherPermissionManagement = () => {
                       marginTop: '4px'
                     }}
                   >
-                    <option value="">-- Tất cả các khóa --</option>
+                    <option value="">-- Chọn khóa học --</option>
                     {cohorts.map(cohort => (
-                      <option key={cohort.id} value={cohort.params.cohort_id}>
-                        {cohort.params.name}
+                      <option key={cohort.cohortId} value={cohort.cohortId}>
+                        {cohort.name} ({cohort.startYear} - {cohort.endYear})
                       </option>
                     ))}
                   </select>
@@ -456,17 +808,32 @@ const TeacherPermissionManagement = () => {
                     <option value="">
                       {!perm.cohortId ? '-- Vui lòng chọn khóa trước --' : '-- Chọn học kỳ --'}
                     </option>
-                    {getFilteredSemesters(perm.cohortId).map(sem => (
-                      <option key={sem.id} value={sem.params.semester_id}>
-                        {sem.params.semesterName}
-                      </option>
-                    ))}
+                    {getFilteredSemesters(perm.cohortId).map(sem => {
+                      // Try multiple field names for semesterId (AdminJS may use different fields)
+                      const semesterId = sem.params?.semesterId 
+                        || sem.params?.semester_id 
+                        || sem.semesterId 
+                        || sem.id;
+                      
+                      // Try multiple field names for semester name
+                      const semesterName = sem.params?.name 
+                        || sem.params?.semesterName 
+                        || sem.name;
+                      
+                      console.log('🔍 Rendering semester option:', { semesterId, semesterName, rawSem: sem });
+                      
+                      return (
+                        <option key={sem.id || semesterId} value={semesterId}>
+                          {semesterName}
+                        </option>
+                      );
+                    })}
                   </select>
                 </Box>
 
                 {/* Lớp */}
                 <Box>
-                  <Label>🏫 Lớp (để trống = tất cả)</Label>
+                  <Label>🏫 Lớp (để trống = tất cả lớp trong khóa)</Label>
                   <select
                     value={perm.classId}
                     onChange={(e) => updatePermission(index, 'classId', e.target.value)}
@@ -486,8 +853,8 @@ const TeacherPermissionManagement = () => {
                       {!perm.cohortId ? '-- Vui lòng chọn khóa trước --' : '-- Tất cả các lớp --'}
                     </option>
                     {getFilteredClasses(perm.cohortId).map(cls => (
-                      <option key={cls.id} value={cls.params.id}>
-                        {cls.params.className} ({cls.params.classCode})
+                      <option key={cls.id} value={cls.id}>
+                        {cls.className} ({cls.classCode})
                       </option>
                     ))}
                   </select>
@@ -495,7 +862,7 @@ const TeacherPermissionManagement = () => {
 
                 {/* Môn học */}
                 <Box>
-                  <Label>📚 Môn học (để trống = tất cả)</Label>
+                  <Label>📚 Môn học (để trống = tất cả môn trong lớp)</Label>
                   <select
                     value={perm.subjectId}
                     onChange={(e) => updatePermission(index, 'subjectId', e.target.value)}
@@ -515,8 +882,8 @@ const TeacherPermissionManagement = () => {
                       {!perm.classId ? '-- Vui lòng chọn lớp trước --' : '-- Tất cả các môn --'}
                     </option>
                     {getFilteredSubjects(perm.classId).map(subj => (
-                      <option key={subj.id} value={subj.params.id}>
-                        {subj.params.subjectName} ({subj.params.subjectCode})
+                      <option key={subj.id} value={subj.id}>
+                        {subj.subjectName} ({subj.subjectCode})
                       </option>
                     ))}
                   </select>
@@ -604,7 +971,7 @@ const TeacherPermissionManagement = () => {
       {selectedUser && (
         <Box mt="md">
           <MessageBox 
-            message="ℹ️ Cascade Loading: Chọn Khóa → Học kỳ/Lớp được lọc → Chọn Lớp → Môn học được lọc từ enrollments" 
+            message="ℹ️ Chọn Khóa → Lớp được load từ API → Chọn Lớp → Môn học được load từ API" 
             variant="info" 
           />
         </Box>

@@ -5,8 +5,16 @@
 import express from 'express';
 import { GradeRetake, Grade, Student, ClassSubject, Enrollment } from '../backend/database/index.js';
 import { calculateTBKT, calculateTBMH } from '../utils/gradeCalculation.js';
+import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from "../backend/middleware/session-auth.js";
 
 const router = express.Router();
+
+// ✅ SECURITY FIX: Admin and teacher only
+// Retake scoring is sensitive and should be controlled
+router.use(requireAdminSession);
+router.use(requireAdminOrTeacher);
+
+console.log('✅ Retake scoring routes protected - Admin/Teacher only');
 
 /**
  * GET /api/retake/detailed-history

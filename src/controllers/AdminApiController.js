@@ -71,6 +71,37 @@ const AdminApiController = {
       console.error('AdminApiController.getDashboardStats error:', err);
       return res.status(500).json({ success: false, message: err.message });
     }
+  },
+
+  async createTeacherPermission(req, res) {
+    try {
+      const permissionData = req.body;
+      
+      // Validate required fields
+      if (!permissionData.userId || !permissionData.semesterId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'userId và semesterId là bắt buộc' 
+        });
+      }
+
+      // Import TeacherPermissionService
+      const { default: TeacherPermissionService } = await import('../services/TeacherPermissionService.js');
+      
+      const permission = await TeacherPermissionService.createPermission(permissionData);
+      
+      return res.json({ 
+        success: true, 
+        data: permission,
+        message: 'Tạo quyền thành công'
+      });
+    } catch (err) {
+      console.error('AdminApiController.createTeacherPermission error:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: err.message 
+      });
+    }
   }
 };
 

@@ -11,7 +11,7 @@ const StudentTranscriptComponent = () => {
   useEffect(() => {
     const fetchStudents = async () => {
       try {
-        const response = await fetch('/api/students');
+        const response = await fetch('/admin-api/students');
         const data = await response.json();
         console.log('Students response:', data);
         
@@ -40,7 +40,7 @@ const StudentTranscriptComponent = () => {
     setError(null);
     
     try {
-      const response = await fetch(`/api/student/${studentCode}/transcript`);
+      const response = await fetch(`/admin-api/student/${studentCode}/transcript`);
       const data = await response.json();
       console.log('Transcript response:', data);
       

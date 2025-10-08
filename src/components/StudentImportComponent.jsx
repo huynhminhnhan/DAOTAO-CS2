@@ -15,7 +15,7 @@ const StudentImportComponent = () => {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const response = await fetch('/api/student-import/classes');
+        const response = await fetch('/admin-api/student-import/classes');
         const data = await response.json();
               
         if (data.success) {
@@ -93,7 +93,7 @@ const StudentImportComponent = () => {
 
       console.log('Sending formData with classId:', selectedClass); // Debug log
 
-      const response = await fetch('/api/student-import/import-students', {
+      const response = await fetch('/admin-api/student-import/import-students', {
         method: 'POST',
         body: formData
       });
@@ -126,7 +126,7 @@ const StudentImportComponent = () => {
 
   const downloadTemplate = async () => {
     try {
-      const response = await fetch('/api/student-import/download-template');
+      const response = await fetch('/admin-api/student-import/download-template');
       
       if (!response.ok) {
         throw new Error('Không thể tải template');

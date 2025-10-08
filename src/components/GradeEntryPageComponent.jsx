@@ -113,7 +113,7 @@ const GradeEntryPage = () => {
     const loadCohorts = async () => {
       try {
         console.log('Loading cohorts...');
-        const endpoint = (window && window.location && window.location.pathname && window.location.pathname.startsWith('/admin')) ? '/admin-api/cohorts' : '/api/cohorts';
+        const endpoint = (window && window.location && window.location.pathname && window.location.pathname.startsWith('/admin')) ? '/admin-api/cohorts' : '/admin-api/cohorts';
         const response = await fetch(endpoint, { credentials: 'include' });
         const data = await response.json();
         
@@ -268,7 +268,7 @@ const GradeEntryPage = () => {
         response = await api.getRecordInResource('subjects', 'list');
       } catch (e) {
         // Fallback to direct API call if AdminJS client fails
-        const res = await fetch('/api/subjects', { credentials: 'include' });
+        const res = await fetch('/admin-api/subjects', { credentials: 'include' });
         const data = await res.json();
         response = { data: { records: data.subjects || [] } };
       }
@@ -303,7 +303,7 @@ const GradeEntryPage = () => {
         setSubjects(subjects);
       } else {
         // Direct database query fallback
-        const directResponse = await fetch('/api/subjects', { credentials: 'include' });
+        const directResponse = await fetch('/admin-api/subjects', { credentials: 'include' });
         const directData = await directResponse.json();
         
         if (directData.success && directData.subjects) {
@@ -380,7 +380,7 @@ const GradeEntryPage = () => {
             academicYear: '2024-25'
           });
 
-          const response = await fetch(`/api/grade/enrolled-students?${params}`, {
+          const response = await fetch(`/admin-api/grade/enrolled-students?${params}`, {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -715,7 +715,7 @@ const GradeEntryPage = () => {
       });
       
       // Send to API endpoint
-      const response = await fetch('/api/grade/save-bulk', {
+      const response = await fetch('/admin-api/grade/save-bulk', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

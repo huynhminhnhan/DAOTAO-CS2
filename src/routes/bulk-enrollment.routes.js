@@ -4,8 +4,16 @@
  */
 import express from 'express';
 import BulkEnrollmentController from '../controllers/BulkEnrollmentController.js';
+import { requireAdminSession, requireAdminOrTeacher } from '../backend/middleware/session-auth.js';
 
 const router = express.Router();
+
+// ✅ SECURITY: Admin and teacher only (session-based)
+// Bulk enrollment operations should be controlled
+router.use(requireAdminSession);
+router.use(requireAdminOrTeacher);
+
+console.log('✅ Bulk enrollment routes protected - Admin/Teacher only (session-based)');
 
 // GET /api/bulk-enrollment/subjects - Lấy danh sách môn học
 router.get('/subjects', BulkEnrollmentController.getSubjects);

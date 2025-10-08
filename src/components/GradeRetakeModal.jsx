@@ -45,7 +45,7 @@ const GradeRetakeModal = ({
         subjectId
       });
       
-      const response = await fetch(`/api/retake/detailed-history?${params}`, {
+      const response = await fetch(`/admin-api/retake/detailed-history?${params}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -91,7 +91,7 @@ const GradeRetakeModal = ({
         notes: newRetake.notes.trim() || null
       };
       
-      const response = await fetch('/api/retake/create', {
+      const response = await fetch('/admin-api/retake/create', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -141,7 +141,7 @@ const GradeRetakeModal = ({
       setLoading(true);
       setError('');
       
-      const response = await fetch('/api/retake/submit-scores', {
+      const response = await fetch('/admin-api/retake/submit-scores', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -188,7 +188,7 @@ const GradeRetakeModal = ({
     try {
       setLoading(true);
       
-      const response = await fetch('/api/retake/promote-to-main', {
+      const response = await fetch('/admin-api/retake/promote-to-main', {
         method: 'POST',
         credentials: 'include',
         headers: {

@@ -3,8 +3,16 @@
  */
 import express from 'express';
 import AcademicController from '../controllers/AcademicController.js';
+import { optionalSession } from "../backend/middleware/session-auth.js";
 
 const router = express.Router();
+
+// ✅ SECURITY NOTE: These routes use optional auth
+// They work with or without authentication (needed for dropdown components)
+// Consider making them session-based if security is a concern
+router.use(optionalSession);
+
+console.log('✅ Academic routes configured with optional auth (public for dropdowns)');
 
 // GET /api/cohorts - Lấy danh sách tất cả khóa học
 router.get('/cohorts', AcademicController.listCohorts);

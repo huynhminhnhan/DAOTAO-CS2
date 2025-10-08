@@ -4,8 +4,16 @@
 
 import express from 'express';
 import RetakeController from '../controllers/RetakeController.js';
+import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from "../backend/middleware/session-auth.js";
 
 const router = express.Router();
+
+// ✅ SECURITY FIX: Admin and teacher only
+// Retake management operations should be controlled
+router.use(requireAdminSession);
+router.use(requireAdminOrTeacher);
+
+console.log('✅ Retake management routes protected - Admin/Teacher only');
 
 // Phân tích trạng thái điểm
 router.get('/analyze/:gradeId', RetakeController.analyzeGrade);

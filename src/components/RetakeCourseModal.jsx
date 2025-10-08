@@ -164,7 +164,7 @@ const RetakeCourseModal = ({
     setLoading(true);
     try {
       // Cập nhật điểm vào Grade table (điểm hiển thị chính)
-      const updateResponse = await fetch('/api/grades/update-retake-course', {
+      const updateResponse = await fetch('/admin-api/grades/update-retake-course', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -57,7 +57,7 @@ const RetakeExamModal = ({
     setLoading(true);
     try {
       // Cập nhật điểm vào Grade table (điểm hiển thị chính)
-      const updateResponse = await fetch('/api/grades/update-retake-exam', {
+      const updateResponse = await fetch('/admin-api/grades/update-retake-exam', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

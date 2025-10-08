@@ -1,15 +1,30 @@
 import express from 'express';
 import GradeHistoryController from '../controllers/GradeHistoryController.js';
+import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from "../backend/middleware/session-auth.js";
 
 const router = express.Router();
 
-// List history
-router.get('/api/grade-history', GradeHistoryController.list);
+console.log('✅ Grade history routes protected with different permission levels');
+
+// ✅ SECURITY FIX: List and detail - teacher can view
+router.get('/api/grade-history', 
+  requireAdminSession, 
+  requireAdminOrTeacher, 
+  GradeHistoryController.list
+);
 
 // Detail
-router.get('/api/grade-history/:id', GradeHistoryController.detail);
+router.get('/api/grade-history/:id', 
+  requireAdminSession, 
+  requireAdminOrTeacher, 
+  GradeHistoryController.detail
+);
 
-// Revert
-router.post('/api/grade-history/:id/revert', GradeHistoryController.revert);
+// ✅ CRITICAL: Revert - admin only (very sensitive!)
+router.post('/api/grade-history/:id/revert', 
+  requireAdminSession, 
+  requireAdmin,  // ⚠️ Admin only!
+  GradeHistoryController.revert
+);
 
 export default router;

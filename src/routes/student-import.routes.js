@@ -2,8 +2,16 @@ import express from 'express';
 import multer from 'multer';
 import xlsx from 'xlsx';
 import StudentImportController from '../controllers/StudentImportController.js';
+import { requireAdminSession, requireAdmin } from '../backend/middleware/session-auth.js';
 
 const router = express.Router();
+
+// ✅ SECURITY: Admin-only routes (session-based)
+// Student import is a critical operation that should only be performed by admins
+router.use(requireAdminSession);
+router.use(requireAdmin);
+
+console.log('✅ Student import routes protected - Admin only (session-based)');
 
 // Cấu hình multer để xử lý upload file
 const upload = multer({ 

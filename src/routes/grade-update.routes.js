@@ -1,16 +1,22 @@
 import express from 'express';
 import GradeUpdateController from '../controllers/GradeUpdateController.js';
-import authMiddleware from '../middleware/auth.middleware.js';
+import { requireAdminSession, requireAdminOrTeacher } from '../backend/middleware/session-auth.js';
 import { checkGradeEntryPermission } from '../middleware/checkTeacherPermission.js';
 
 const router = express.Router();
 
 /**
- * Routes cho cập nhật điểm thi lại và học lại
+ * ✅ SECURITY FIX: Enable authentication and role-based authorization
+ * These routes handle sensitive grade updates and must be protected
  */
 
-// Middleware authentication cho tất cả routes
-// router.use(authMiddleware.checkRole(['admin', 'teacher']));
+// Apply AdminJS session authentication
+router.use(requireAdminSession);
+
+// Apply role-based authorization (only admin and teacher)
+router.use(requireAdminOrTeacher);
+
+console.log('✅ Grade update routes protected with AdminJS session + role check');
 
 /**
  * PUT /api/grades/update-retake-exam
