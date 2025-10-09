@@ -10,13 +10,19 @@ import { Components } from './components.js';
  * @link https://docs.adminjs.co/ui-customization/writing-your-own-components#creating-custom-pages
  */
 export const pagesConfig = {
-  // Thêm các pages khác ở đây nếu cần
-  // 'dashboard-custom': {
-  //   component: Components.CustomDashboard,
-  //   icon: 'Dashboard',
-  //   parent: {
-  //     name: 'Báo cáo',
-  //     icon: 'Analytics'
-  //   }
-  // }
+  // Teacher Grade Entry Page - ONLY TX and DK scores
+  'teacher-grade-entry': {
+    component: Components.TeacherGradeEntry,
+    icon: 'Edit',
+    handler: async (request, response, context) => {
+      // Check if user is teacher
+      const currentAdmin = context.currentAdmin;
+      if (!currentAdmin || currentAdmin.role !== 'teacher') {
+        return {
+          text: 'Access denied. This page is only for teachers.',
+        };
+      }
+      return {};
+    }
+  }
 };

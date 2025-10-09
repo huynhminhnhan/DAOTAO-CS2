@@ -33,7 +33,8 @@ export const localeConfig = {
       },
       pages: {
         'test-simple': 'Test Component',
-        'nhap-diem': 'Nhập điểm'
+        'nhap-diem': 'Nhập điểm',
+        'teacher-grade-entry': 'Nhập điểm TX & ĐK'
       },
       messages: {
         successfullyCreated: 'Đã tạo thành công',

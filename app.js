@@ -101,24 +101,73 @@ const startApp = async () => {
             }
           });
 
-          if (!user) return null;
-
-          if (await user.validatePassword(password)) {
-            user.lastLogin = new Date();
-            await user.save();
-
-            // Return minimal currentAdmin object used by AdminJS
-            return {
-              id: user.id,
-              email: user.email,
-              username: user.username,
-              role: user.role
-            };
+          if (!user) {
+            console.log(`[Auth] Login failed: User not found or inactive - ${email}`);
+            return null;
           }
 
-          return null;
+          if (!(await user.validatePassword(password))) {
+            console.log(`[Auth] Login failed: Invalid password - ${email}`);
+            return null;
+          }
+
+          // Kiểm tra teacher permissions nếu là teacher
+          if (user.role === 'teacher') {
+            const { TeacherPermission } = await import('./src/backend/database/index.js');
+            
+            // Kiểm tra xem teacher có ít nhất 1 permission còn valid không
+            const activePermissions = await TeacherPermission.findAll({
+              where: {
+                userId: user.id,
+                status: 'active'
+              }
+            });
+
+            if (activePermissions.length === 0) {
+              console.log(`[Auth] Login failed: Teacher ${email} has no active permissions`);
+              throw new Error('Tài khoản giáo viên không có quyền truy cập. Vui lòng liên hệ quản trị viên.');
+            }
+
+            // Kiểm tra xem có ít nhất 1 permission còn trong thời hạn không
+            const now = new Date();
+            const validPermissions = activePermissions.filter(perm => {
+              const validFrom = new Date(perm.validFrom);
+              const validTo = new Date(perm.validTo);
+              return now >= validFrom && now <= validTo;
+            });
+
+            if (validPermissions.length === 0) {
+              console.log(`[Auth] Login failed: All permissions expired for teacher ${email}`);
+              throw new Error('Tài khoản giáo viên đã hết thời hạn truy cập. Vui lòng liên hệ quản trị viên.');
+            }
+
+            console.log(`[Auth] Teacher ${email} logged in successfully with ${validPermissions.length} valid permissions`);
+          }
+
+          // Update last login
+          user.lastLogin = new Date();
+          await user.save();
+
+          console.log(`[Auth] User ${email} (${user.role}) logged in successfully`);
+
+          // Return minimal currentAdmin object used by AdminJS
+          return {
+            id: user.id,
+            email: user.email,
+            username: user.username,
+            role: user.role
+          };
         } catch (error) {
-          console.error('Admin authentication error:', error);
+          console.error('[Auth] Authentication error:', error);
+          
+          // Nếu là error message tùy chỉnh, throw ra để hiển thị cho user
+          if (error.message && (
+            error.message.includes('không có quyền') || 
+            error.message.includes('hết thời hạn')
+          )) {
+            throw error;
+          }
+          
           return null;
         }
       },

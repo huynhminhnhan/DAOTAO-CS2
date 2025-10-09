@@ -110,6 +110,66 @@ router.get('/check/:enrollmentId', checkIsTeacher, async (req, res) => {
 });
 
 /**
+ * GET /api/teacher-permissions/my-classes
+ * Lấy danh sách lớp mà giáo viên được phân công
+ * Middleware: checkIsTeacher
+ */
+router.get('/my-classes', checkIsTeacher, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { Class, TeacherPermission } = await import('../backend/database/index.js');
+    
+    // Lấy tất cả permissions active của giáo viên
+    const permissions = await TeacherPermission.findAll({
+      where: {
+        userId: userId,
+        status: 'active'
+      },
+      attributes: ['classId']
+    });
+    
+    // Extract unique classIds
+    const classIds = [...new Set(permissions.map(p => p.classId).filter(id => id !== null))];
+    
+    if (classIds.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        message: 'Không có lớp nào được phân công'
+      });
+    }
+    
+    // Lấy thông tin chi tiết các lớp
+    const classes = await Class.findAll({
+      where: {
+        id: classIds
+      },
+      attributes: ['id', 'className', 'classCode', 'academicYear', 'semester', 'cohortId'],
+      order: [['className', 'ASC']]
+    });
+    
+    res.json({
+      success: true,
+      data: classes.map(c => ({
+        id: c.id,
+        className: c.className,
+        classCode: c.classCode,
+        academicYear: c.academicYear,
+        semester: c.semester,
+        cohortId: c.cohortId
+      }))
+    });
+  } catch (error) {
+    console.error('❌ Error loading teacher classes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tải danh sách lớp',
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/teacher-permissions/stats
  * Thống kê quyền của giảng viên (số lớp, môn, sinh viên)
  * Middleware: checkHasAnyPermission

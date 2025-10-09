@@ -20,32 +20,60 @@ const SubjectResource = {
         before: async (request, context) => {
           const { currentAdmin } = context;
           console.log('[SubjectResource] List action - User:', currentAdmin?.email, 'Role:', currentAdmin?.role);
+          
+          // Nếu là teacher, inject filter theo permissions
+          if (currentAdmin?.role === 'teacher') {
+            const allowedSubjectIds = await getTeacherManagedSubjectIds(currentAdmin.id);
+            
+            console.log('[SubjectResource] Teacher allowed subject IDs:', allowedSubjectIds);
+            
+            // Nếu không có quyền với tất cả môn học, thêm filter id
+            if (allowedSubjectIds !== 'all') {
+              const currentFilters = request.query?.filters || {};
+              
+              if (allowedSubjectIds.length === 0) {
+                // Không có quyền - filter để không trả về record nào
+                request.query = {
+                  ...request.query,
+                  filters: {
+                    ...currentFilters,
+                    id: '-999999' // ID không tồn tại
+                  }
+                };
+                console.log('[SubjectResource] Teacher has NO permissions - filtering to empty');
+              } else {
+                // Có quyền với các môn học cụ thể - inject filter id
+                request.query = {
+                  ...request.query,
+                  filters: {
+                    ...currentFilters,
+                    id: allowedSubjectIds.join(',') // VD: "12,13,14"
+                  }
+                };
+                console.log('[SubjectResource] Applied id filter:', allowedSubjectIds.join(','));
+              }
+            } else {
+              console.log('[SubjectResource] Teacher has access to ALL subjects');
+            }
+          }
+          
           return request;
         },
         after: async (response, request, context) => {
           const { currentAdmin } = context;
           
-          // Nếu là teacher, lọc records dựa trên permissions
+          // FALLBACK: Nếu before hook filter không work, dùng after hook
           if (currentAdmin?.role === 'teacher') {
-            console.log('[SubjectResource] Applying teacher filter in AFTER hook');
-            
             const allowedSubjectIds = await getTeacherManagedSubjectIds(currentAdmin.id);
             
-            console.log('[SubjectResource] Allowed subject IDs:', allowedSubjectIds);
+            console.log('[SubjectResource] After hook - Filtering records');
             console.log('[SubjectResource] Total records before filter:', response.records.length);
             
-            // Debug: In ra structure của record đầu tiên
-            if (response.records.length > 0) {
-              console.log('[SubjectResource] First record keys:', Object.keys(response.records[0]));
-            }
-            
-            // Nếu có quyền với tất cả
             if (allowedSubjectIds === 'all') {
               console.log('[SubjectResource] Teacher has access to ALL subjects');
               return response;
             }
             
-            // Nếu không có quyền nào
             if (allowedSubjectIds.length === 0) {
               console.log('[SubjectResource] Teacher has NO permissions');
               response.records = [];
@@ -56,26 +84,18 @@ const SubjectResource = {
             // Filter records
             const allowedIdsSet = new Set(allowedSubjectIds);
             const filteredRecords = response.records.filter(record => {
-              let subjectId = null;
+              const subjectId = parseInt(record.params?.id || record.id);
+              const isAllowed = allowedIdsSet.has(subjectId);
               
-              if (record.params && record.params.id) {
-                subjectId = record.params.id;
-              } else if (record.id) {
-                subjectId = record.id;
-              } else if (record._id) {
-                subjectId = record._id;
+              if (!isAllowed) {
+                console.log(`[SubjectResource] Filtering out subject ID ${subjectId}`);
               }
-              
-              // Convert to number để so sánh
-              const subjectIdNum = parseInt(subjectId);
-              const isAllowed = allowedIdsSet.has(subjectIdNum);
-              
-              console.log(`[SubjectResource] Checking record - ID: ${subjectId} (type: ${typeof subjectId}), Num: ${subjectIdNum}, Allowed: ${isAllowed}`);
               
               return isAllowed;
             });
             
             console.log('[SubjectResource] Filtered records:', filteredRecords.length);
+            console.log('[SubjectResource] Showing subject IDs:', filteredRecords.map(r => r.params?.id || r.id));
             
             response.records = filteredRecords;
             response.meta.total = filteredRecords.length;

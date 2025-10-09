@@ -6,50 +6,11 @@
  */
 import { Student } from '../backend/database/index.js';
 import { Components } from '../config/components.js';
-import { getTeacherManagedStudentIds } from '../middleware/teacherPermissions.js';
-import { Op } from 'sequelize';
-
-// Tạo custom filter function cho Student resource
-const createStudentQueryFilter = async (context) => {
-  const { currentAdmin } = context;
-  
-  if (!currentAdmin || currentAdmin.role !== 'teacher') {
-    return {}; // Admin thấy tất cả
-  }
-  
-  const allowedStudentIds = await getTeacherManagedStudentIds(currentAdmin.id);
-  
-  console.log('[StudentResource] Creating query filter for teacher, allowed IDs:', allowedStudentIds);
-  
-  if (allowedStudentIds === 'all') {
-    return {}; // Teacher có quyền tất cả
-  }
-  
-  if (allowedStudentIds.length === 0) {
-    return { id: { [Op.in]: [-999999] } }; // Không có quyền - return empty
-  }
-  
-  return { id: { [Op.in]: allowedStudentIds } }; // Filter theo IDs
-};
+import { getTeacherManagedClassIds } from '../middleware/teacherPermissions.js';
 
 const StudentResource = {
   resource: Student,
   options: {
-    // Custom query filter function được gọi mỗi khi load records
-    queryFilter: async (query, context) => {
-      const teacherFilter = await createStudentQueryFilter(context);
-      
-      if (Object.keys(teacherFilter).length > 0) {
-        console.log('[StudentResource] Applying queryFilter:', teacherFilter);
-        // Merge teacher filter vào query where clause
-        query.where = {
-          ...query.where,
-          ...teacherFilter
-        };
-      }
-      
-      return query;
-    },
     parent: {
       name: 'Quản lý Sinh viên',
       icon: 'User'
@@ -168,88 +129,93 @@ const StudentResource = {
       list: {
         isAccessible: true,
         before: async (request, context) => {
-          console.log('[StudentResource] ==================== LIST ACTION ====================');
-          console.log('[StudentResource] User:', context.currentAdmin?.email, 'Role:', context.currentAdmin?.role);
-          
-          // Thêm custom Sequelize filter cho teacher
-          const teacherFilter = await createStudentQueryFilter(context);
-          
-          if (Object.keys(teacherFilter).length > 0) {
-            // Inject Sequelize where clause vào request
-            // AdminJS sẽ merge này vào query
-            request._sequelizeWhere = teacherFilter;
-            console.log('[StudentResource] Applied Sequelize where:', teacherFilter);
-          }
-          
-          return request;
-        }
-      },
-      search: {
-        before: async (request, context) => {
           const { currentAdmin } = context;
+          console.log('[StudentResource] List action - User:', currentAdmin?.email, 'Role:', currentAdmin?.role);
           
-          console.log('[StudentResource] Search action - User:', currentAdmin?.email, 'Role:', currentAdmin?.role);
-          
-          // Nếu là teacher, lọc theo permissions
+          // Nếu là teacher, inject filter vào request để AdminJS query đúng từ đầu
           if (currentAdmin?.role === 'teacher') {
-            const teacherFilter = await getTeacherWhereClause(currentAdmin.id, 'student');
+            const allowedClassIds = await getTeacherManagedClassIds(currentAdmin.id);
             
-            console.log('[StudentResource] Teacher search filter:', teacherFilter);
+          
             
-            // Nếu có filter (không phải null), apply vào request
-            if (teacherFilter !== null) {
+            // Nếu không có quyền với tất cả lớp, thêm filter classId
+            if (allowedClassIds !== 'all') {
               const currentFilters = request.query?.filters || {};
-              request.query = {
-                ...request.query,
-                filters: {
-                  ...currentFilters,
-                  ...teacherFilter
-                }
-              };
+              
+              if (allowedClassIds.length === 0) {
+                // Không có quyền - filter để không trả về record nào
+                request.query = {
+                  ...request.query,
+                  filters: {
+                    ...currentFilters,
+                    classId: '-999999' // ID không tồn tại
+                  }
+                };
+              
+              } else {
+                // Có quyền với các lớp cụ thể - inject filter classId
+                // AdminJS hỗ trợ filter với comma-separated values cho "in" operator
+                request.query = {
+                  ...request.query,
+                  filters: {
+                    ...currentFilters,
+                    classId: allowedClassIds.join(',') // VD: "12,13,14"
+                  }
+                };
+              
+              }
+            } else {
+              console.log('[StudentResource] Teacher has access to ALL classes');
             }
           }
           
           return request;
+        },
+        after: async (response, request, context) => {
+          const { currentAdmin } = context;
+          
+          // FALLBACK: Nếu before hook filter không work, dùng after hook
+          if (currentAdmin?.role === 'teacher') {
+            const allowedClassIds = await getTeacherManagedClassIds(currentAdmin.id);
+            
+            console.log('[StudentResource] After hook - Filtering records');
+            console.log('[StudentResource] Total records before filter:', response.records.length);
+            
+            if (allowedClassIds === 'all') {
+              console.log('[StudentResource] Teacher has access to ALL students');
+              return response;
+            }
+            
+            if (allowedClassIds.length === 0) {
+              console.log('[StudentResource] Teacher has NO permissions');
+              response.records = [];
+              response.meta.total = 0;
+              return response;
+            }
+            
+            // Filter records theo classId
+            const allowedIdsSet = new Set(allowedClassIds);
+            const filteredRecords = response.records.filter(record => {
+              const classId = parseInt(record.params?.classId);
+              const isAllowed = allowedIdsSet.has(classId);
+              
+              if (!isAllowed) {
+                console.log(`[StudentResource] Filtering out student ID ${record.params?.id} (classId: ${classId})`);
+              }
+              
+              return isAllowed;
+            });
+          
+            
+            response.records = filteredRecords;
+            response.meta.total = filteredRecords.length;
+          }
+          
+          return response;
         }
       },
-      importStudents: {
-        actionType: 'resource',
-        icon: 'Upload',
-        label: 'Import sinh viên từ Excel',
-        component: Components.StudentImportComponent,
-        handler: async (request, response, context) => {
-          // Chỉ hiển thị component, logic xử lý sẽ được thực hiện qua API riêng
-          return {
-            record: {}
-          };
-        }
-      },
-      viewTranscript: {
-        actionType: 'record',
-        label: 'Xem bảng điểm',
-        component: Components.StudentTranscriptComponent,
-        showInDrawer: false,
-        handler: async (request, response, context) => {
-          const { record, currentAdmin } = context;
-          return {
-            record: record.toJSON ? record.toJSON(currentAdmin) : record
-          };
-        }
-      },
-      gradeHistory: {
-        actionType: 'record',
-        label: 'Lịch sử sửa điểm',
-        component: Components.StudentGradeHistoryTab,
-        showInDrawer: false,
-        isVisible: true,
-        handler: async (request, response, context) => {
-          const { record } = context;
-          return {
-            record: record.toJSON ? record.toJSON(context.currentAdmin) : record
-          };
-        }
-      },
-  edit: {
+      show: {
+        isAccessible: true, // Cho phép tất cả xem chi tiết
         layout: [
           // Hàng 1: Mã SV và Họ tên
           [{ flexDirection: 'row', flex: true }, [
@@ -274,6 +240,7 @@ const StudentResource = {
         ]
       },
       new: {
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin', // Chỉ admin tạo mới
         layout: [
           // Hàng 1: Mã SV và Họ tên
           [{ flexDirection: 'row', flex: true }, [
@@ -297,7 +264,8 @@ const StudentResource = {
           ]]
         ]
       },
-      show: {
+      edit: {
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin', // Chỉ admin sửa
         layout: [
           // Hàng 1: Mã SV và Họ tên
           [{ flexDirection: 'row', flex: true }, [
@@ -320,6 +288,49 @@ const StudentResource = {
             ['status', { flexGrow: 1 }]
           ]]
         ]
+      },
+      delete: {
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin' // Chỉ admin xóa
+      },
+      importStudents: {
+        actionType: 'resource',
+        icon: 'Upload',
+        label: 'Import sinh viên từ Excel',
+        component: Components.StudentImportComponent,
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin', // Chỉ admin import
+        handler: async (request, response, context) => {
+          // Chỉ hiển thị component, logic xử lý sẽ được thực hiện qua API riêng
+          return {
+            record: {}
+          };
+        }
+      },
+      viewTranscript: {
+        actionType: 'record',
+        label: 'Xem bảng điểm',
+        component: Components.StudentTranscriptComponent,
+        showInDrawer: false,
+        isAccessible: true, // Cho phép tất cả xem bảng điểm
+        handler: async (request, response, context) => {
+          const { record, currentAdmin } = context;
+          return {
+            record: record.toJSON ? record.toJSON(currentAdmin) : record
+          };
+        }
+      },
+      gradeHistory: {
+        actionType: 'record',
+        label: 'Lịch sử sửa điểm',
+        component: Components.StudentGradeHistoryTab,
+        showInDrawer: false,
+        isVisible: true,
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin', // Chỉ admin xem lịch sử
+        handler: async (request, response, context) => {
+          const { record } = context;
+          return {
+            record: record.toJSON ? record.toJSON(context.currentAdmin) : record
+          };
+        }
       }
     }
   }

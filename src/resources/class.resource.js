@@ -158,8 +158,42 @@ const ClassResource = {
           
           console.log('[ClassResource] List action - User:', currentAdmin?.email, 'Role:', currentAdmin?.role);
           
-          // Admin: Auto-filter by cohort if specified
-          if (currentAdmin?.role !== 'teacher') {
+          // Teacher: Inject filter theo permissions
+          if (currentAdmin?.role === 'teacher') {
+            const allowedClassIds = await getTeacherManagedClassIds(currentAdmin.id);
+            
+            console.log('[ClassResource] Teacher allowed class IDs:', allowedClassIds);
+            
+            // Nếu không có quyền với tất cả lớp, thêm filter id
+            if (allowedClassIds !== 'all') {
+              const currentFilters = request.query?.filters || {};
+              
+              if (allowedClassIds.length === 0) {
+                // Không có quyền - filter để không trả về record nào
+                request.query = {
+                  ...request.query,
+                  filters: {
+                    ...currentFilters,
+                    id: '-999999' // ID không tồn tại
+                  }
+                };
+                console.log('[ClassResource] Teacher has NO permissions - filtering to empty');
+              } else {
+                // Có quyền với các lớp cụ thể - inject filter id
+                request.query = {
+                  ...request.query,
+                  filters: {
+                    ...currentFilters,
+                    id: allowedClassIds.join(',') // VD: "12,13,14"
+                  }
+                };
+                console.log('[ClassResource] Applied id filter:', allowedClassIds.join(','));
+              }
+            } else {
+              console.log('[ClassResource] Teacher has access to ALL classes');
+            }
+          } else {
+            // Admin: Auto-filter by cohort if specified
             const { query } = request;
             if (query?.cohortFilter) {
               request.query = {
@@ -174,28 +208,18 @@ const ClassResource = {
         after: async (response, request, context) => {
           const { currentAdmin } = context;
           
-          // Nếu là teacher, lọc records dựa trên permissions
+          // FALLBACK: Nếu before hook filter không work, dùng after hook
           if (currentAdmin?.role === 'teacher') {
-            console.log('[ClassResource] Applying teacher filter in AFTER hook');
-            
             const allowedClassIds = await getTeacherManagedClassIds(currentAdmin.id);
             
-            console.log('[ClassResource] Allowed class IDs:', allowedClassIds);
+            console.log('[ClassResource] After hook - Filtering records');
             console.log('[ClassResource] Total records before filter:', response.records.length);
             
-            // Debug: In ra structure của record đầu tiên
-            if (response.records.length > 0) {
-              console.log('[ClassResource] First record keys:', Object.keys(response.records[0]));
-              console.log('[ClassResource] First record sample:', JSON.stringify(response.records[0], null, 2));
-            }
-            
-            // Nếu có quyền với tất cả
             if (allowedClassIds === 'all') {
               console.log('[ClassResource] Teacher has access to ALL classes');
               return response;
             }
             
-            // Nếu không có quyền nào
             if (allowedClassIds.length === 0) {
               console.log('[ClassResource] Teacher has NO permissions');
               response.records = [];
@@ -203,30 +227,21 @@ const ClassResource = {
               return response;
             }
             
-            // Filter records - thử nhiều cách lấy ID
+            // Filter records
             const allowedIdsSet = new Set(allowedClassIds);
             const filteredRecords = response.records.filter(record => {
-              let classId = null;
+              const classId = parseInt(record.params?.id || record.id);
+              const isAllowed = allowedIdsSet.has(classId);
               
-              if (record.params && record.params.id) {
-                classId = record.params.id;
-              } else if (record.id) {
-                classId = record.id;
-              } else if (record._id) {
-                classId = record._id;
+              if (!isAllowed) {
+                console.log(`[ClassResource] Filtering out class ID ${classId}`);
               }
-              
-              // Convert to number để so sánh (AdminJS có thể trả về string)
-              const classIdNum = parseInt(classId);
-              const isAllowed = allowedIdsSet.has(classIdNum);
-              
-              console.log(`[ClassResource] Checking record - ID: ${classId} (type: ${typeof classId}), Num: ${classIdNum}, Allowed: ${isAllowed}`);
               
               return isAllowed;
             });
             
             console.log('[ClassResource] Filtered records:', filteredRecords.length);
-            console.log('[ClassResource] Filtered IDs:', filteredRecords.map(r => r.params?.id || r.id || r._id));
+            console.log('[ClassResource] Showing class IDs:', filteredRecords.map(r => r.params?.id || r.id));
             
             response.records = filteredRecords;
             response.meta.total = filteredRecords.length;
