@@ -4,7 +4,10 @@ const GradeHistoryResource = {
   resource: GradeHistory,
   options: {
     id: 'GradeHistory',
-    navigation: { name: 'Học Tập', icon: 'Book' },
+    parent: {
+      name: 'Học Tập',
+      icon: 'Book'
+    },
     properties: {
       id: { isId: true, label: 'ID' },
       gradeId: { isVisible: { list: true, show: true }, label: 'ID Điểm' },
@@ -30,6 +33,7 @@ const GradeHistoryResource = {
     },
     actions: {
       list: {
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin',
         after: async (response, request, context) => {
           try {
             const { records } = response;
@@ -45,6 +49,7 @@ const GradeHistoryResource = {
       edit: { isAccessible: false },
       delete: { isAccessible: false },
       show: {
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin',
         layout: [
           // Row 1: Grade ID and Change Type
           [{ flexDirection: 'row', flex: true }, [

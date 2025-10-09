@@ -102,6 +102,62 @@ const AdminApiController = {
         message: err.message 
       });
     }
+  },
+
+  async deleteTeacherPermission(req, res) {
+    try {
+      const { id } = req.params;
+      
+      if (!id) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'ID quyền là bắt buộc' 
+        });
+      }
+
+      // Import TeacherPermission model
+      const { TeacherPermission } = await import('../backend/database/index.js');
+      
+      // Find the permission first
+      const permission = await TeacherPermission.findByPk(id);
+      
+      if (!permission) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Không tìm thấy quyền này' 
+        });
+      }
+
+      // Log who is deleting
+      const adminEmail = req.session?.adminUser?.email || 'unknown';
+      console.log(`🗑️ Admin ${adminEmail} đang xóa quyền #${id}`);
+      
+      // Delete the permission
+      await permission.destroy();
+      
+      // Verify it's deleted
+      const checkDeleted = await TeacherPermission.findByPk(id);
+      if (checkDeleted) {
+        console.error(`❌ Quyền #${id} vẫn tồn tại sau khi xóa!`);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Không thể xóa quyền' 
+        });
+      }
+      
+      console.log(`✅ Đã xóa quyền #${id} thành công`);
+      
+      return res.json({ 
+        success: true, 
+        message: 'Đã xóa quyền thành công' 
+      });
+    } catch (err) {
+      console.error('AdminApiController.deleteTeacherPermission error:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: err.message 
+      });
+    }
   }
 };
 

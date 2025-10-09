@@ -69,35 +69,34 @@ const EnrollmentResource = {
     
     actions: {
       list: {
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin',
         before: async (request, context) => {
-          const { currentAdmin } = context;
-          if (currentAdmin?.role === 'teacher') {
-            const { Teacher, TeacherClassAssignment } = await import('../backend/database/index.js');
-            const teacher = await Teacher.findOne({ where: { email: currentAdmin.email } });
-            if (teacher) {
-              const assignments = await TeacherClassAssignment.findAll({ where: { teacherId: teacher.id } });
-              const classIds = assignments.map(a => a.classId);
-              if (classIds.length > 0) {
-                request.query = {
-                  ...request.query,
-                  'filters.classId': classIds
-                };
-              }
-            }
-          }
+          // Teacher permissions now managed via TeacherPermission model
+          // No filtering needed here - permissions checked at grade entry level
           return request;
         }
       },
+      show: {
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin'
+      },
+      edit: {
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin'
+      },
       new: {
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin',
         before: async (request) => {
           
           return request;
         }
       },
+      delete: {
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin'
+      },
       bulkEnroll: {
         actionType: 'resource',
         icon: 'Users',
         label: 'Đăng ký môn học theo lớp',
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin',
         component: Components.BulkEnrollmentComponent,
         handler: async (request, response, context) => {
           // Component sẽ xử lý logic, handler này chỉ để hiển thị component

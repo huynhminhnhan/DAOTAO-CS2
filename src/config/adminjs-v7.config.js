@@ -30,8 +30,6 @@ import UserResource from '../resources/user.resource.js';
 import ClassResource from '../resources/class.resource.js';
 import TeacherResource from '../resources/teacher.resource.js';
 import SubjectResource from '../resources/subject.resource.js';
-// import TeacherClassAssignmentResource from '../resources/teacher-class-assignment.resource.js';
-// import ClassSubjectResource from '../resources/class-subject.resource.js';
 import GradeResource from '../resources/grade.resource.js';
 import EnrollmentResource from '../resources/enrollment.resource.js';
 import CohortResource from '../resources/cohort.resource.js';
@@ -57,13 +55,11 @@ export const createAdminJSConfig = () => {
       ClassResource,
       TeacherResource, 
       SubjectResource,
-  // TeacherClassAssignmentResource,
-      // ClassSubjectResource,
       GradeResource,
       EnrollmentResource,
       CohortResource,
       SemesterResource,
-  GradeHistoryResource,
+      GradeHistoryResource,
       TeacherPermissionResource, // ⭐ Module mới - Gán quyền nhập điểm
     ],
     // Custom pages
@@ -72,7 +68,12 @@ export const createAdminJSConfig = () => {
     // Static assets
     assets: {
       styles: ['/vendor/flatpickr/flatpickr.min.css', '/custom-admin.css', '/vietnamese-fix.css', '/vietnamese-menu-override.css'],
-      scripts: ['/vietnamese-text-fixer.js', '/vietnamese-menu-fixer.js', '/ultimate-vietnamese-fixer.js']
+      scripts: [
+        '/vietnamese-text-fixer.js', 
+        '/vietnamese-menu-fixer.js', 
+        '/ultimate-vietnamese-fixer.js',
+        '/pages-rbac-hider.js' // ⭐ Ẩn pages theo role
+      ]
     },
     
     // Root path

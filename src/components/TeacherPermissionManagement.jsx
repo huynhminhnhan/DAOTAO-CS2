@@ -587,17 +587,30 @@ const TeacherPermissionManagement = () => {
     if (!confirm('Bạn có chắc muốn xóa quyền này?')) return;
 
     try {
-      await api.resourceAction({
-        resourceId: 'teacher_permissions',
-        actionName: 'delete',
-        recordId: permissionId
+      console.log('Attempting to delete permission:', permissionId);
+      
+      // Use custom API endpoint instead of AdminJS resourceAction
+      const response = await fetch(`/admin-api/teacher-permissions/${permissionId}`, {
+        method: 'DELETE',
+        credentials: 'include', // Important: include session cookie
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
-      sendNotice({ message: 'Đã xóa quyền', type: 'success' });
-      loadUserPermissions(selectedUser);
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Không thể xóa quyền');
+      }
+
+      sendNotice({ message: result.message || 'Đã xóa quyền', type: 'success' });
+      
+      // Reload permissions to refresh UI
+      await loadUserPermissions(selectedUser);
     } catch (error) {
       console.error('Error deleting permission:', error);
-      sendNotice({ message: 'Lỗi khi xóa quyền', type: 'error' });
+      sendNotice({ message: 'Lỗi khi xóa quyền: ' + (error.message || 'Unknown error'), type: 'error' });
     }
   };
 

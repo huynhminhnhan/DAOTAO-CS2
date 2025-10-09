@@ -1,14 +1,55 @@
 /**
  * Student Resource Configuration
  * Cấu hình resource Student với layout 2 cột thực sự
+ * 
+ * Note: Teacher permissions are now managed via TeacherPermission model.
  */
 import { Student } from '../backend/database/index.js';
 import { Components } from '../config/components.js';
-import StudentResourceService from '../services/studentResource.service.js';
+import { getTeacherManagedStudentIds } from '../middleware/teacherPermissions.js';
+import { Op } from 'sequelize';
+
+// Tạo custom filter function cho Student resource
+const createStudentQueryFilter = async (context) => {
+  const { currentAdmin } = context;
+  
+  if (!currentAdmin || currentAdmin.role !== 'teacher') {
+    return {}; // Admin thấy tất cả
+  }
+  
+  const allowedStudentIds = await getTeacherManagedStudentIds(currentAdmin.id);
+  
+  console.log('[StudentResource] Creating query filter for teacher, allowed IDs:', allowedStudentIds);
+  
+  if (allowedStudentIds === 'all') {
+    return {}; // Teacher có quyền tất cả
+  }
+  
+  if (allowedStudentIds.length === 0) {
+    return { id: { [Op.in]: [-999999] } }; // Không có quyền - return empty
+  }
+  
+  return { id: { [Op.in]: allowedStudentIds } }; // Filter theo IDs
+};
 
 const StudentResource = {
   resource: Student,
   options: {
+    // Custom query filter function được gọi mỗi khi load records
+    queryFilter: async (query, context) => {
+      const teacherFilter = await createStudentQueryFilter(context);
+      
+      if (Object.keys(teacherFilter).length > 0) {
+        console.log('[StudentResource] Applying queryFilter:', teacherFilter);
+        // Merge teacher filter vào query where clause
+        query.where = {
+          ...query.where,
+          ...teacherFilter
+        };
+      }
+      
+      return query;
+    },
     parent: {
       name: 'Quản lý Sinh viên',
       icon: 'User'
@@ -125,11 +166,51 @@ const StudentResource = {
     // Layout 2 cột cho form edit và new
     actions: {
       list: {
-        before: async (request, context) => StudentResourceService.applyTeacherScopeToRequest(request, context)
+        isAccessible: true,
+        before: async (request, context) => {
+          console.log('[StudentResource] ==================== LIST ACTION ====================');
+          console.log('[StudentResource] User:', context.currentAdmin?.email, 'Role:', context.currentAdmin?.role);
+          
+          // Thêm custom Sequelize filter cho teacher
+          const teacherFilter = await createStudentQueryFilter(context);
+          
+          if (Object.keys(teacherFilter).length > 0) {
+            // Inject Sequelize where clause vào request
+            // AdminJS sẽ merge này vào query
+            request._sequelizeWhere = teacherFilter;
+            console.log('[StudentResource] Applied Sequelize where:', teacherFilter);
+          }
+          
+          return request;
+        }
       },
-      // Ensure AdminJS reference/autocomplete search also respects teacher scope
       search: {
-        before: async (request, context) => StudentResourceService.applyTeacherScopeToRequest(request, context)
+        before: async (request, context) => {
+          const { currentAdmin } = context;
+          
+          console.log('[StudentResource] Search action - User:', currentAdmin?.email, 'Role:', currentAdmin?.role);
+          
+          // Nếu là teacher, lọc theo permissions
+          if (currentAdmin?.role === 'teacher') {
+            const teacherFilter = await getTeacherWhereClause(currentAdmin.id, 'student');
+            
+            console.log('[StudentResource] Teacher search filter:', teacherFilter);
+            
+            // Nếu có filter (không phải null), apply vào request
+            if (teacherFilter !== null) {
+              const currentFilters = request.query?.filters || {};
+              request.query = {
+                ...request.query,
+                filters: {
+                  ...currentFilters,
+                  ...teacherFilter
+                }
+              };
+            }
+          }
+          
+          return request;
+        }
       },
       importStudents: {
         actionType: 'resource',
@@ -190,8 +271,7 @@ const StudentResource = {
             ['phone', { flexGrow: 1, marginRight: 'default' }],
             ['status', { flexGrow: 1 }]
           ]]
-        ],
-  before: async (request, context) => StudentResourceService.applyTeacherScopeToRequest(request, context)
+        ]
       },
       new: {
         layout: [

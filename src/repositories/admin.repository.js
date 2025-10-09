@@ -1,4 +1,4 @@
-import { Class, Teacher, TeacherClassAssignment, User, Cohort, Subject } from '../backend/database/index.js';
+import { Class, Teacher, User, Cohort, Subject } from '../backend/database/index.js';
 
 const AdminRepository = {
   async findAllClasses(options = {}) {
@@ -21,10 +21,6 @@ const AdminRepository = {
     const user = await User.findByPk(userId);
     if (!user) return null;
     return Teacher.findOne({ where: { email: user.email } });
-  },
-
-  async findAssignmentsByTeacherId(teacherId) {
-    return TeacherClassAssignment.findAll({ where: { teacherId } });
   },
 
   async findClassesByIds(ids) {

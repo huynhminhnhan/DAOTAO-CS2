@@ -35,6 +35,7 @@
     'Enrollments': 'Đăng ký môn học',
     'Semesters': 'Học kỳ',
     'Bulk Enroll': 'Đăng ký theo lớp',
+    'Manage Teacher Permissions': 'Gán quyền giảng viên',
 
 
     // Common UI elements

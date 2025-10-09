@@ -104,12 +104,6 @@ Teacher.associate = (models) => {
     onDelete: 'RESTRICT'
   });
 
-  Teacher.hasMany(models.TeacherClassAssignment, {
-    foreignKey: 'teacherId',
-    as: 'classAssignments',
-    onDelete: 'CASCADE'
-  });
-
   Teacher.hasMany(models.ClassSubject, {
     foreignKey: 'teacherId',
     as: 'teachingSchedules',

@@ -36,54 +36,19 @@ const GradeResource = {
     // Thêm action nhập điểm theo lớp
     actions: {
       list: {
-        isAccessible: ({ currentAdmin }) => {
-          return currentAdmin.role === 'admin' || currentAdmin.role === 'teacher';
-        },
-        before: async (request, context) => {
-          const { currentAdmin } = context;
-          
-          // Admin thấy tất cả
-          if (currentAdmin.role === 'admin') {
-            return request;
-          }
-          
-          // Giáo viên chỉ thấy điểm lớp mình quản lý  
-          if (currentAdmin.role === 'teacher') {
-            const { Teacher, TeacherClassAssignment, Student } = await import('../backend/database/index.js');
-            const teacher = await Teacher.findOne({ where: { email: currentAdmin.email } });
-            if (teacher) {
-              const assignments = await TeacherClassAssignment.findAll({ where: { teacherId: teacher.id } });
-              const classIds = assignments.map(a => a.classId);
-              // find students in those classes
-              const students = await Student.findAll({ where: { classId: classIds }, attributes: ['id'] });
-              const studentIds = students.map(s => s.id);
-              request.query = {
-                ...request.query,
-                'filters.studentId': studentIds
-              };
-            }
-          }
-          
-          return request;
-        }
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin'
       },
-      
+      show: {
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin'
+      },
       edit: {
-        isAccessible: ({ currentAdmin }) => {
-          return currentAdmin.role === 'admin' || currentAdmin.role === 'teacher';
-        }
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin'
       },
-      
       delete: {
-        isAccessible: ({ currentAdmin }) => {
-          return currentAdmin.role === 'admin';
-        }
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin'
       },
-      
       new: {
-        isAccessible: ({ currentAdmin }) => {
-          return currentAdmin.role === 'admin' || currentAdmin.role === 'teacher';
-        }
+        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin'
       }
     },
     

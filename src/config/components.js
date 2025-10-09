@@ -27,7 +27,6 @@ const Components = {
   TeacherPermissionManagement: componentLoader.add('TeacherPermissionManagement', path.join(__dirname, '../components/TeacherPermissionManagement.jsx')),
   DateShowDDMMYYYY: componentLoader.add('DateShowDDMMYYYY', path.join(__dirname, '../components/DateShowDDMMYYYY.jsx')),
   DatePickerFlatpickr: componentLoader.add('DatePickerFlatpickr', path.join(__dirname, '../components/DatePickerFlatpickr.jsx')),
-  ManagedClassesMultiSelect: componentLoader.add('ManagedClassesMultiSelect', path.join(__dirname, '../components/ManagedClassesMultiSelect.jsx')),
   AdminDashboard: componentLoader.add('AdminDashboard', path.join(__dirname, '../components/AdminDashboard.jsx')),
   CustomAdminLogin: componentLoader.add('CustomAdminLogin', path.join(__dirname, '../components/CustomAdminLogin.jsx')),
   GradeHistoryDiff: componentLoader.add('GradeHistoryDiff', path.join(__dirname, '../components/GradeHistoryDiff.jsx')),

@@ -10,9 +10,10 @@ import { Components } from '../config/components.js';
 const teacherPermissionResource = {
   resource: TeacherPermission,
   options: {
-    navigation: {
-      name: 'Quản lý quyền',
-      icon: 'Key'
+    id: 'teacher_permissions', // Explicitly set resource ID
+    parent: {
+      name: 'Người dùng',
+      icon: 'User'
     },
     properties: {
       // ID
@@ -146,6 +147,18 @@ const teacherPermissionResource = {
 
     // Actions
     actions: {
+      // Custom action: Quản lý quyền (opens custom component)
+      managePermissions: {
+        actionType: 'resource',
+        icon: 'Key',
+        label: 'Gán quyền cho giảng viên',
+        component: Components.TeacherPermissionManagement,
+        handler: async (request, response, context) => {
+          return { record: {} };
+        },
+        isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin',
+      },
+
       // List action
       list: {
         isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin',
@@ -187,9 +200,25 @@ const teacherPermissionResource = {
       delete: {
         isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin',
         before: async (request, context) => {
-          // Confirm trước khi xóa
+          // Log trước khi xóa
           console.log(`🗑️ Admin ${context.currentAdmin.email} đang xóa quyền #${request.params.recordId}`);
           return request;
+        },
+        after: async (response, request, context) => {
+          // Verify deletion
+          const recordId = request.params.recordId;
+          try {
+            const deleted = await TeacherPermission.findByPk(recordId);
+            if (deleted) {
+              // Nếu vẫn còn, force delete
+              console.warn(`⚠️ Record #${recordId} vẫn tồn tại, force delete...`);
+              await TeacherPermission.destroy({ where: { id: recordId }, force: true });
+            }
+            console.log(`✅ Admin ${context.currentAdmin.email} đã xóa quyền #${recordId}`);
+          } catch (err) {
+            console.error(`❌ Lỗi khi verify deletion:`, err);
+          }
+          return response;
         }
       },
 

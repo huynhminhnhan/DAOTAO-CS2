@@ -51,4 +51,7 @@ router.get('/admin-api/dashboard-stats', AdminApiController.getDashboardStats);
 // Admin-only endpoint to create teacher permission
 router.post('/admin-api/teacher-permissions', AdminApiController.createTeacherPermission);
 
+// Admin-only endpoint to delete teacher permission
+router.delete('/admin-api/teacher-permissions/:id', AdminApiController.deleteTeacherPermission);
+
 export default router;

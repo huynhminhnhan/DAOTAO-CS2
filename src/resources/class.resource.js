@@ -3,6 +3,7 @@
  * Cấu hình resource Class cho lớp học cố định suốt khóa
  */
 import { Class } from '../backend/database/index.js';
+import { getTeacherManagedClassIds } from '../middleware/teacherPermissions.js';
 
 const ClassResource = {
   resource: Class,
@@ -151,23 +152,14 @@ const ClassResource = {
     // Layout form và custom actions
     actions: {
       list: {
-        isAccessible: ({ currentAdmin }) => currentAdmin?.role !== 'teacher' || currentAdmin?.role === 'teacher',
+        isAccessible: true, // Cho phép cả admin và teacher
         before: async (request, context) => {
           const { currentAdmin } = context;
-          // If teacher, restrict to classes assigned to them
-          if (currentAdmin?.role === 'teacher') {
-            const { TeacherClassAssignment, Teacher } = await import('../backend/database/index.js');
-            const teacher = await Teacher.findOne({ where: { email: currentAdmin.email } });
-            if (teacher) {
-              const assignments = await TeacherClassAssignment.findAll({ where: { teacherId: teacher.id } });
-              const classIds = assignments.map(a => a.classId);
-              request.query = {
-                ...request.query,
-                'filters.id': classIds
-              };
-            }
-          } else {
-            // Auto-filter by cohort if specified
+          
+          console.log('[ClassResource] List action - User:', currentAdmin?.email, 'Role:', currentAdmin?.role);
+          
+          // Admin: Auto-filter by cohort if specified
+          if (currentAdmin?.role !== 'teacher') {
             const { query } = request;
             if (query?.cohortFilter) {
               request.query = {
@@ -176,58 +168,79 @@ const ClassResource = {
               };
             }
           }
-          return request;
-        }
-      },
-      // Respect teacher scope for AdminJS reference/autocomplete searches
-      search: {
-        before: async (request, context) => {
-          const { currentAdmin } = context;
-          if (currentAdmin?.role === 'teacher') {
-            const { TeacherClassAssignment, Teacher } = await import('../backend/database/index.js');
-            const teacher = await Teacher.findOne({ where: { email: currentAdmin.email } });
-            if (teacher) {
-              const assignments = await TeacherClassAssignment.findAll({ where: { teacherId: teacher.id } });
-              const classIds = assignments.map(a => a.classId);
-              if (classIds.length > 0) {
-                request.query = {
-                  ...request.query,
-                  'filters.id': classIds
-                };
-              }
-            }
-          }
-          return request;
-        }
-      },
-      new: {
-        before: async (request, context) => {
-          // Auto-populate cohort-related fields based on selected cohort
           
-          if (request.payload?.cohortId) {
-            const { Cohort } = await import('../backend/database/index.js');
-            try {
-              const cohort = await Cohort.findByPk(request.payload.cohortId);
-              if (cohort) {
-                // Auto-set startYear and endYear based on cohort
-                console.log(cohort);
-                request.payload.startYear = request.payload.startYear || cohort.startYear;
-                request.payload.endYear = request.payload.endYear || cohort.endYear;
-              }
-            } catch (error) {
-              console.error('Error loading cohort:', error);
-            }
-          }
           return request;
         },
         after: async (response, request, context) => {
-          if (response.record && !response.record.errors) {
-            response.notice = {
-              message: `Lớp học đã được tạo thành công với khóa học!`,
-              type: 'success'
-            };
+          const { currentAdmin } = context;
+          
+          // Nếu là teacher, lọc records dựa trên permissions
+          if (currentAdmin?.role === 'teacher') {
+            console.log('[ClassResource] Applying teacher filter in AFTER hook');
+            
+            const allowedClassIds = await getTeacherManagedClassIds(currentAdmin.id);
+            
+            console.log('[ClassResource] Allowed class IDs:', allowedClassIds);
+            console.log('[ClassResource] Total records before filter:', response.records.length);
+            
+            // Debug: In ra structure của record đầu tiên
+            if (response.records.length > 0) {
+              console.log('[ClassResource] First record keys:', Object.keys(response.records[0]));
+              console.log('[ClassResource] First record sample:', JSON.stringify(response.records[0], null, 2));
+            }
+            
+            // Nếu có quyền với tất cả
+            if (allowedClassIds === 'all') {
+              console.log('[ClassResource] Teacher has access to ALL classes');
+              return response;
+            }
+            
+            // Nếu không có quyền nào
+            if (allowedClassIds.length === 0) {
+              console.log('[ClassResource] Teacher has NO permissions');
+              response.records = [];
+              response.meta.total = 0;
+              return response;
+            }
+            
+            // Filter records - thử nhiều cách lấy ID
+            const allowedIdsSet = new Set(allowedClassIds);
+            const filteredRecords = response.records.filter(record => {
+              let classId = null;
+              
+              if (record.params && record.params.id) {
+                classId = record.params.id;
+              } else if (record.id) {
+                classId = record.id;
+              } else if (record._id) {
+                classId = record._id;
+              }
+              
+              // Convert to number để so sánh (AdminJS có thể trả về string)
+              const classIdNum = parseInt(classId);
+              const isAllowed = allowedIdsSet.has(classIdNum);
+              
+              console.log(`[ClassResource] Checking record - ID: ${classId} (type: ${typeof classId}), Num: ${classIdNum}, Allowed: ${isAllowed}`);
+              
+              return isAllowed;
+            });
+            
+            console.log('[ClassResource] Filtered records:', filteredRecords.length);
+            console.log('[ClassResource] Filtered IDs:', filteredRecords.map(r => r.params?.id || r.id || r._id));
+            
+            response.records = filteredRecords;
+            response.meta.total = filteredRecords.length;
           }
+          
           return response;
+        }
+      },
+      // Search action for reference/autocomplete
+      search: {
+        before: async (request, context) => {
+          // Teacher permissions now managed via TeacherPermission model
+          // No filtering needed here
+          return request;
         }
       },
       edit: {
@@ -247,53 +260,22 @@ const ClassResource = {
             ['homeroomTeacherId', { flexGrow: 1, marginRight: 'default' }],
             ['trainingTeacherId', { flexGrow: 1 }]
           ]],
-          // Hàng 3: Giáo viên khảo thí và Năm bắt đầu
+          // Hàng 4: Giáo viên khảo thí và Năm bắt đầu
           [{ flexDirection: 'row', flex: true }, [
             ['examTeacherId', { flexGrow: 1, marginRight: 'default' }],
             ['startYear', { flexGrow: 1 }]
           ]],
-          // Hàng 4: Năm kết thúc và Sĩ số tối đa
+          // Hàng 5: Năm kết thúc và Sĩ số tối đa
           [{ flexDirection: 'row', flex: true }, [
             ['endYear', { flexGrow: 1, marginRight: 'default' }],
             ['maxStudents', { flexGrow: 1 }]
           ]],
-          // Hàng 5: Trạng thái
+          // Hàng 6: Trạng thái
           [{ flexDirection: 'column', flex: true }, [
             ['status', { flexGrow: 1 }]
           ]]
         ]
       },
-      new: {
-        isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin',
-        layout: [
-          // Hàng 1: Mã lớp và Tên lớp
-          [{ flexDirection: 'row', flex: true }, [
-            ['classCode', { flexGrow: 1, marginRight: 'default' }],
-            ['className', { flexGrow: 2 }]
-          ]],
-          // Hàng 2: Giáo viên chủ nhiệm và đào tạo
-          [{ flexDirection: 'row', flex: true }, [
-            ['homeroomTeacherId', { flexGrow: 1, marginRight: 'default' }],
-            ['trainingTeacherId', { flexGrow: 1 }]
-          ]],
-          // Hàng 3: Giáo viên khảo thí và Năm bắt đầu
-          [{ flexDirection: 'row', flex: true }, [
-            ['examTeacherId', { flexGrow: 1, marginRight: 'default' }],
-            ['startYear', { flexGrow: 1 }]
-          ]],
-          // Hàng 4: Năm kết thúc và Sĩ số tối đa
-          [{ flexDirection: 'row', flex: true }, [
-            ['endYear', { flexGrow: 1, marginRight: 'default' }],
-            ['maxStudents', { flexGrow: 1 }]
-          ]],
-          // Hàng 5: Trạng thái
-          [{ flexDirection: 'column', flex: true }, [
-            ['status', { flexGrow: 1 }]
-          ]]
-        ]
-      },
-      // keep delete admin-only
-      delete: { isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin' },
       new: {
         isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin',
         layout: [
@@ -326,7 +308,9 @@ const ClassResource = {
             ['status', { flexGrow: 1 }]
           ]]
         ]
-      }
+      },
+      // keep delete admin-only
+      delete: { isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin' }
     }
   }
 };
