@@ -1,0 +1,9 @@
+{
+  "name": "student-management-system-frontend",
+  "version": "1.0.0",
+  "description": "Student Grade Management System with AdminJS v7, JWT Auth and SQLite - Frontend",
+  "type": "module",
+  "dependencies": {
+    "adminjs": "^7.8.17"
+  }
+}

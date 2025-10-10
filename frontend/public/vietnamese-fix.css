@@ -1,0 +1,34 @@
+/* AdminJS v7 Vietnamese Text Fix - Ultimate Solution */
+
+/* Override all styled-components CSS that causes text-transform */
+*[class*="NavigationElement"],
+*[class*="navigation-element"],
+*[class*="sidebar"] *,
+.sidebar-navigation *,
+.navigation-element *,
+nav[role="navigation"] *,
+[data-testid*="navigation"] *,
+div[role="navigation"] *,
+a[href*="/admin/resources/"] *,
+.adminjs-sidebar *,
+.adminjs-navigation *,
+body * {
+  text-transform: none !important;
+  font-family: 'Segoe UI', 'Roboto', 'Arial Unicode MS', Arial, sans-serif !important;
+  text-decoration: none !important;
+  font-variant: normal !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Specific fix for AdminJS v7 styled-components */
+body {
+  font-family: 'Segoe UI', 'Roboto', 'Arial Unicode MS', Arial, sans-serif !important;
+}
+
+/* Force override any CSS with higher specificity */
+html body .adminjs-app *,
+html body * {
+  text-transform: none !important;
+  font-family: 'Segoe UI', 'Roboto', 'Arial Unicode MS', Arial, sans-serif !important;
+}
