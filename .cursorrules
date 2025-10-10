@@ -7,7 +7,13 @@
 - `src/services/` - Business logic services  
 - `src/repositories/` - Data access layer
 - `src/controllers/` - API controllers
-- `src/routes/` - Express routes
+- `src/routes/` - Express routes (organized by feature)
+  - `auth.routes.js` - Authentication endpoints
+  - `teacher-permission.routes.js` - Teacher permission management
+  - `grade.routes.js` - Grade CRUD operations
+  - `grade-state.routes.js` - Grade state workflow
+  - `subjects.routes.js` - Subject endpoints
+  - `admin-api.routes.js` - Main router mounting all sub-routes
 - `src/middleware/` - Custom middleware
 
 ### Frontend

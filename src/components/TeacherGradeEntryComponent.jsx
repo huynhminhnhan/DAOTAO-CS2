@@ -6,6 +6,7 @@ import {
   GRADE_COEFFICIENTS,
   GRADE_WEIGHTS 
 } from '../utils/gradeCalculation';
+import { API_ENDPOINTS, getUrlWithParams } from '../config/api.config';
 
 /**
  * Teacher Grade Entry Component - Simplified for Teachers
@@ -151,7 +152,7 @@ const TeacherGradeEntry = () => {
   useEffect(() => {
     const loadCurrentUser = async () => {
       try {
-        const response = await fetch('/admin-api/auth/current-user', { 
+        const response = await fetch(API_ENDPOINTS.AUTH.CURRENT_USER, { 
           credentials: 'include' 
         });
         const data = await response.json();
@@ -171,7 +172,7 @@ const TeacherGradeEntry = () => {
     const loadTeacherCohorts = async () => {
       try {
         console.log('Loading teacher cohorts...');
-        const response = await fetch('/admin-api/teacher-permissions/my-cohorts', { 
+        const response = await fetch(API_ENDPOINTS.TEACHER_PERMISSIONS.MY_COHORTS, { 
           credentials: 'include' 
         });
         const data = await response.json();
@@ -197,7 +198,7 @@ const TeacherGradeEntry = () => {
       const loadClassesByCohort = async () => {
         try {
           console.log('Loading teacher classes for cohort:', selectedCohort);
-          const response = await fetch(`/admin-api/teacher-permissions/my-classes/${selectedCohort}`, { 
+          const response = await fetch(API_ENDPOINTS.TEACHER_PERMISSIONS.MY_CLASSES(selectedCohort), { 
             credentials: 'include' 
           });
           const data = await response.json();
@@ -230,7 +231,7 @@ const TeacherGradeEntry = () => {
       
       try {
         console.log('Loading subjects for class:', selectedClass);
-        const response = await fetch(`/admin-api/subjects/by-class/${selectedClass}`, { 
+        const response = await fetch(API_ENDPOINTS.SUBJECTS.BY_CLASS(selectedClass), { 
           credentials: 'include' 
         });
         const data = await response.json();
@@ -300,15 +301,15 @@ const TeacherGradeEntry = () => {
             throw new Error('Class information not found');
           }
 
-          const params = new URLSearchParams({
+          const params = {
             cohortId: parsedCohortId,
             classId: parsedClassId,
             subjectId: parsedSubjectId,
             semester: classInfo.semester || 'HK1',
             academicYear: classInfo.academicYear || '2024-25'
-          });
+          };
 
-          const response = await fetch(`/admin-api/grade/enrolled-students?${params}`, {
+          const response = await fetch(getUrlWithParams(API_ENDPOINTS.GRADE.ENROLLED_STUDENTS, params), {
             method: 'GET',
             credentials: 'include',
             headers: {
@@ -569,7 +570,7 @@ const TeacherGradeEntry = () => {
         throw new Error('Không có điểm nào để nộp duyệt.\n\n⚠️ Lưu ý: Các điểm phải được LƯU vào hệ thống trước khi có thể nộp duyệt.\n\nVui lòng:\n1. Click "💾 Lưu điểm" trước\n2. Sau đó mới click "📤 Nộp điểm để duyệt"');
       }
       
-      const response = await fetch('/admin-api/grade/state/bulk-submit', {
+      const response = await fetch(API_ENDPOINTS.GRADE.STATE.BULK_SUBMIT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -595,28 +596,53 @@ const TeacherGradeEntry = () => {
       console.log('✅ Submit result:', result);
       
       const successCount = result.data?.successCount || 0;
-      const failedCount = result.data?.failedCount || 0;
+      const failedCount = result.data?.failCount || 0;
+      
+      console.log('📊 Submit response data:', {
+        successCount,
+        failedCount,
+        successful: result.data?.successful,
+        failed: result.data?.failed
+      });
       
       if (successCount > 0) {
         // Update gradeStatuses to PENDING_REVIEW for successfully submitted grades
         const newStatuses = { ...gradeStatuses };
-        if (result.data?.results) {
-          result.data.results.forEach(item => {
+        if (result.data?.successful) {
+          result.data.successful.forEach(item => {
             if (item.success && item.gradeId) {
+              console.log('🔍 Processing successful item:', item);
+              
               // Find student ID by gradeId
               const studentId = Object.keys(newStatuses).find(
-                sid => newStatuses[sid].gradeId === item.gradeId
+                sid => newStatuses[sid]?.gradeId === item.gradeId
               );
+              
               if (studentId) {
+                console.log(`🔄 Updating student ${studentId} gradeStatus to PENDING_REVIEW`);
+                
+                // Use data from API response if available
+                const gradeData = item.data; // Full Grade object from service
                 newStatuses[studentId] = {
-                  ...newStatuses[studentId],
-                  gradeStatus: 'PENDING_REVIEW',
-                  submittedForReviewAt: new Date().toISOString()
+                  gradeId: item.gradeId,
+                  gradeStatus: gradeData?.gradeStatus || 'PENDING_REVIEW',
+                  lockStatus: {
+                    txLocked: gradeData?.txLocked || true,
+                    dkLocked: gradeData?.dkLocked || true,
+                    finalLocked: gradeData?.finalLocked || false
+                  },
+                  submittedForReviewAt: gradeData?.submittedForReviewAt || new Date().toISOString(),
+                  approvedAt: gradeData?.approvedAt || null
                 };
+                
+                console.log(`✅ Updated status for student ${studentId}:`, newStatuses[studentId]);
+              } else {
+                console.warn(`⚠️ Could not find student for gradeId ${item.gradeId}`);
               }
             }
           });
         }
+        console.log('✅ Final gradeStatuses after submit:', newStatuses);
         setGradeStatuses(newStatuses);
         
         const message = failedCount > 0 
@@ -702,7 +728,7 @@ const TeacherGradeEntry = () => {
       });
       
       // Send to API endpoint
-      const response = await fetch('/admin-api/grade/save-bulk', {
+      const response = await fetch(API_ENDPOINTS.GRADE.SAVE_BULK, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
