@@ -3,7 +3,7 @@
  * Cấu hình resource Grade với phân quyền
  */
 
-import { Grade,Teacher,Class,Student } from '../backend/database/index.js';
+import { Grade,Teacher,Class,Student } from '../database/index.js';
 
 const GradeResource = {
   resource: Grade,

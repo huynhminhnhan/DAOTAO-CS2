@@ -4,7 +4,7 @@ import path from 'path';
 // Ensure we run with the project's NODE env so models use sqlite config
 process.env.DB_DIALECT = process.env.DB_DIALECT || 'sqlite';
 
-import { sequelize, Student, User, Subject, Class, Teacher, TeacherClassAssignment, ClassSubject, Grade, GradeHistory, Notification, Enrollment, Cohort, Semester } from '../src/backend/database/index.js';
+import { sequelize, Student, User, Subject, Class, Teacher, TeacherClassAssignment, ClassSubject, Grade, GradeHistory, Notification, Enrollment, Cohort, Semester } from '../src/database/index.js';
 
 const OUT = path.join(process.cwd(), 'tmp', 'sqlite-export.json');
 

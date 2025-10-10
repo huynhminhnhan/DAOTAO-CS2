@@ -1,5 +1,5 @@
-import Semester from '../backend/database/models/Semester.js';
-import Cohort from '../backend/database/models/Cohort.js';
+import Semester from '../database/models/Semester.js';
+import Cohort from '../database/models/Cohort.js';
 import { Components } from '../config/components.js';
 
 const SemesterResource = {

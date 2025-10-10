@@ -2,7 +2,7 @@
  * Teacher Resource Configuration
  * Cấu hình resource Teacher với thông tin giáo viên
  */
-import { Teacher } from '../backend/database/index.js';
+import { Teacher } from '../database/index.js';
 
 const TeacherResource = {
   resource: Teacher,

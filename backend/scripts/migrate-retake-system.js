@@ -8,7 +8,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { sequelize } from '../src/backend/database/index.js';
+import { sequelize } from '../src/database/index.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -29,7 +29,7 @@ const runMigration = async () => {
     
     // 2. Load and execute migration
     console.log('\n2️⃣ Executing migration...');
-    const migrationPath = path.join(__dirname, '../src/backend/database/migrations/20250906-add-retake-system.cjs');
+    const migrationPath = path.join(__dirname, '../src/database/migrations/20250906-add-retake-system.cjs');
     
     if (!fs.existsSync(migrationPath)) {
       throw new Error(`Migration file not found: ${migrationPath}`);

@@ -4,7 +4,7 @@
 
 import express from 'express';
 import RetakeController from '../controllers/RetakeController.js';
-import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from "../backend/middleware/session-auth.js";
+import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from '../middleware/session-auth.js';
 
 const router = express.Router();
 

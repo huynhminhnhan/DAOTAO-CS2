@@ -1,24 +1,15 @@
 {
   "type": "module",
-  "name": "student-management-system",
+  "name": "student-management-system-backend",
   "version": "1.0.0",
-  "description": "Student Grade Management System with AdminJS v7, JWT Auth and SQLite",
+  "description": "Student Grade Management System with AdminJS v7, JWT Auth and SQLite - Backend",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "NODE_ENV=development nodemon app.js --watch src --watch app.js --ext js,jsx,ts,tsx,json --exec \"rm -rf .adminjs/ && node\"",
-    "rebuild": "rm -rf .adminjs/ && echo '✅ Bundle cleared! Will rebuild on next restart.'",
-    "dev:quick": "npm run rebuild && npm run dev",
-    "export:sqlite": "node scripts/export-sqlite-data.js",
-    "import:mysql": "node scripts/import-to-mysql.js",
-  "migrate": "node scripts/migrate.js",
-  "db:migrate": "npx sequelize-cli db:migrate",
-  "db:migrate:undo": "npx sequelize-cli db:migrate:undo",
-  "db:migrate:status": "npx sequelize-cli db:migrate:status"
-  ,"db:seed:all": "npx sequelize-cli db:seed:all",
-  "db:seed:undo": "npx sequelize-cli db:seed:undo:all"
+    "dev": "NODE_ENV=development nodemon app.js --watch src --ext js,jsx,json",
+    "db:migrate": "npx sequelize-cli db:migrate",
+    "db:seed": "npx sequelize-cli db:seed:all"
   },
-  
   "keywords": [
     "adminjs",
     "sqlite",
@@ -55,8 +46,8 @@
     "multer": "^2.0.2",
     "node-fetch": "^3.3.2",
     "sequelize": "^6.37.3",
-  "sqlite3": "^5.1.0",
-  "mysql2": "^3.6.0",
+    "sqlite3": "^5.1.0",
+    "mysql2": "^3.6.0",
     "validator": "^13.11.0",
     "xlsx": "^0.18.5"
   },
@@ -68,7 +59,7 @@
     "@types/react": "^18.3.23",
     "chokidar": "^4.0.3",
     "concurrently": "^9.2.0",
-  "nodemon": "^3.0.0",
-  "sequelize-cli": "^6.6.1"
+    "nodemon": "^3.0.0",
+    "sequelize-cli": "^6.6.1"
   }
 }

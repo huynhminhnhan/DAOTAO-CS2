@@ -3,7 +3,7 @@
  */
 
 import GradeStateService from '../src/services/GradeStateService.js';
-import { Grade, sequelize } from '../src/backend/database/index.js';
+import { Grade, sequelize } from '../src/database/index.js';
 
 async function testSubmitForReview() {
   try {

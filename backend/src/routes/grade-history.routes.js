@@ -1,6 +1,6 @@
 import express from 'express';
 import GradeHistoryController from '../controllers/GradeHistoryController.js';
-import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from "../backend/middleware/session-auth.js";
+import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from '../middleware/session-auth.js';
 
 const router = express.Router();
 

@@ -21,8 +21,8 @@ import SequelizeStore from 'connect-session-sequelize';
 import path from 'path';
 
 // Import configurations
-import { createAdminJSConfig } from './src/config/adminjs-v7.config.js';
-import { createExpressApp } from './src/config/server.config.js';
+import { createAdminJSConfig } from './backend/src/config/adminjs-v7.config.js';
+import { createExpressApp } from './backend/src/config/server.config.js';
 // Auth middleware will be dynamically imported inside startApp for ESM/CJS interop
 
 // Import database
@@ -30,7 +30,7 @@ import {
   sequelize, 
   User,
   syncDatabase
-} from './src/backend/database/index.js';
+} from './backend/src/database/index.js';
 
 const SessionStore = SequelizeStore(session.Store);
 
@@ -71,13 +71,14 @@ const startApp = async () => {
 
     await sessionStore.sync();
 
-    // Serve static files for custom CSS
-    app.use(express.static('public'));
-    app.use("/public", express.static("public"))
+    // Serve static files for custom CSS from frontend/public
+    const frontendPublicPath = path.join(process.cwd(), 'frontend', 'public');
+    app.use(express.static(frontendPublicPath));
+    app.use("/public", express.static(frontendPublicPath))
 
   // Serve only required vendor assets from node_modules under a safe /vendor prefix
   // This exposes only the flatpickr distribution files, not the entire node_modules.
-  const flatpickrDist = path.join(process.cwd(), 'node_modules', 'flatpickr', 'dist');
+  const flatpickrDist = path.join(process.cwd(), 'backend', 'node_modules', 'flatpickr', 'dist');
   app.use('/vendor/flatpickr', express.static(flatpickrDist));
 
     // Create AdminJS instance with modular configuration
@@ -113,7 +114,7 @@ const startApp = async () => {
 
           // Kiểm tra teacher permissions nếu là teacher
           if (user.role === 'teacher') {
-            const { TeacherPermission } = await import('./src/backend/database/index.js');
+            const { TeacherPermission } = await import('./src/database/index.js');
             
             // Kiểm tra xem teacher có ít nhất 1 permission còn valid không
             const activePermissions = await TeacherPermission.findAll({
@@ -194,7 +195,7 @@ const startApp = async () => {
     app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Mount admin API routes (classes, teacher-assignments)
-  const adminApiRoutes = (await import('./src/routes/admin-api.routes.js')).default;
+  const adminApiRoutes = (await import('./backend/src/routes/admin-api.routes.js')).default;
   app.use('/', adminApiRoutes);
 
     // Simple input sanitization middleware
@@ -260,7 +261,7 @@ const startApp = async () => {
     // ==========================================
     // SETUP ALL ROUTES (Centralized)
     // ==========================================
-    const { setupRoutes } = await import('./src/routes/index.js');
+    const { setupRoutes } = await import('./backend/src/routes/index.js');
     await setupRoutes(app);
 
     const PORT = process.env.PORT || 3000;

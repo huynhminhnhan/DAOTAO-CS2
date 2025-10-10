@@ -3,9 +3,9 @@
  * API routes cho chức năng nhập điểm thi lại/học lại
  */
 import express from 'express';
-import { GradeRetake, Grade, Student, ClassSubject, Enrollment } from '../backend/database/index.js';
+import { GradeRetake, Grade, Student, ClassSubject, Enrollment } from '../database/index.js';
 import { calculateTBKT, calculateTBMH } from '../utils/gradeCalculation.js';
-import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from "../backend/middleware/session-auth.js";
+import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from '../middleware/session-auth.js';
 
 const router = express.Router();
 

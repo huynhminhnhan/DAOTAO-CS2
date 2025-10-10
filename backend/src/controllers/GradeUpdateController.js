@@ -1,4 +1,4 @@
-import { Grade, GradeRetake, Enrollment } from '../backend/database/index.js';
+import { Grade, GradeRetake, Enrollment } from '../database/index.js';
 import { Op } from 'sequelize';
 
 /**

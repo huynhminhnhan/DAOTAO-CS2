@@ -2,7 +2,7 @@
  * Student Resource với phân quyền
  * Giáo viên chỉ thấy sinh viên lớp mình quản lý
  */
-import { Student, Class } from '../backend/database';
+import { Student, Class } from '../database';
 
 const StudentResourceWithAuth = {
   resource: Student,

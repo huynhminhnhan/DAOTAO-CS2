@@ -3,7 +3,7 @@
  * Module gán quyền nhập điểm cho giảng viên
  */
 
-import { TeacherPermission, User, Class, Subject, Cohort, Semester } from '../backend/database/index.js';
+import { TeacherPermission, User, Class, Subject, Cohort, Semester } from '../database/index.js';
 import { Components } from '../config/components.js';
 
 /** @type {import('adminjs').ResourceOptions} */

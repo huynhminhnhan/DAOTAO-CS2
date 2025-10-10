@@ -1,4 +1,4 @@
-import Cohort from '../backend/database/models/Cohort.js';
+import Cohort from '../database/models/Cohort.js';
 import { Components } from '../config/components.js';
 
 const CohortResource = {

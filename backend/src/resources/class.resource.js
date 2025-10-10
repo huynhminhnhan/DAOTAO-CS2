@@ -2,7 +2,7 @@
  * Class Resource Configuration
  * Cấu hình resource Class cho lớp học cố định suốt khóa
  */
-import { Class } from '../backend/database/index.js';
+import { Class } from '../database/index.js';
 import { getTeacherManagedClassIds } from '../middleware/teacherPermissions.js';
 
 const ClassResource = {
@@ -66,7 +66,7 @@ const ClassResource = {
         // Custom options for better display
         availableValues: async () => {
           try {
-            const { Cohort } = await import('../backend/database/index.js');
+            const { Cohort } = await import('../database/index.js');
             const cohorts = await Cohort.findAll({
               where: { status: 'active' },
               order: [['startYear', 'DESC'], ['name', 'ASC']]

@@ -1,4 +1,4 @@
-import { GradeHistory } from '../backend/database/index.js';
+import { GradeHistory } from '../database/index.js';
 
 const GradeHistoryResource = {
   resource: GradeHistory,

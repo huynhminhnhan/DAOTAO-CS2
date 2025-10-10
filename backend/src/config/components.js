@@ -17,25 +17,25 @@ const componentLoader = new ComponentLoader();
 // Register all custom components
 const Components = {
   // Custom pages
-  GradeEntryPage: componentLoader.add('GradeEntryPage', path.join(__dirname, '../components/GradeEntryPageComponent.jsx')),
-  StudentImportComponent: componentLoader.add('StudentImportComponent', path.join(__dirname, '../components/StudentImportComponent.jsx')),
-  BulkEnrollmentComponent: componentLoader.add('BulkEnrollmentComponent', path.join(__dirname, '../components/BulkEnrollmentComponent.jsx')),
-  StudentTranscript: componentLoader.add('StudentTranscript', path.join(__dirname, '../components/StudentTranscriptComponent.jsx')),
+  GradeEntryPage: componentLoader.add('GradeEntryPage', path.join(__dirname, '../../../frontend/src/components/GradeEntryPageComponent.jsx')),
+  StudentImportComponent: componentLoader.add('StudentImportComponent', path.join(__dirname, '../../../frontend/src/components/StudentImportComponent.jsx')),
+  BulkEnrollmentComponent: componentLoader.add('BulkEnrollmentComponent', path.join(__dirname, '../../../frontend/src/components/BulkEnrollmentComponent.jsx')),
+  StudentTranscript: componentLoader.add('StudentTranscript', path.join(__dirname, '../../../frontend/src/components/StudentTranscriptComponent.jsx')),
   // Backwards-compatible alias: some resources reference `StudentTranscriptComponent`
-  // StudentTranscriptComponent: componentLoader.add('StudentTranscriptComponent', path.join(__dirname, '../components/StudentTranscriptComponent.jsx')),
-  StudentTranscriptComponent: componentLoader.add('StudentTranscriptComponent', path.join(__dirname, '../components/StudentRecordTranscriptComponent.jsx')),
-  TeacherPermissionManagement: componentLoader.add('TeacherPermissionManagement', path.join(__dirname, '../components/TeacherPermissionManagement.jsx')),
-  TeacherGradeEntry: componentLoader.add('TeacherGradeEntry', path.join(__dirname, '../components/TeacherGradeEntryComponent.jsx')),
-  DateShowDDMMYYYY: componentLoader.add('DateShowDDMMYYYY', path.join(__dirname, '../components/DateShowDDMMYYYY.jsx')),
-  DatePickerFlatpickr: componentLoader.add('DatePickerFlatpickr', path.join(__dirname, '../components/DatePickerFlatpickr.jsx')),
-  AdminDashboard: componentLoader.add('AdminDashboard', path.join(__dirname, '../components/AdminDashboard.jsx')),
-  CustomAdminLogin: componentLoader.add('CustomAdminLogin', path.join(__dirname, '../components/CustomAdminLogin.jsx')),
-  GradeHistoryDiff: componentLoader.add('GradeHistoryDiff', path.join(__dirname, '../components/GradeHistoryDiff.jsx')),
-  StudentGradeHistoryTab: componentLoader.add('StudentGradeHistoryTab', path.join(__dirname, '../components/StudentGradeHistoryTab.jsx')),
+  // StudentTranscriptComponent: componentLoader.add('StudentTranscriptComponent', path.join(__dirname, '../../../frontend/src/components/StudentTranscriptComponent.jsx')),
+  StudentTranscriptComponent: componentLoader.add('StudentTranscriptComponent', path.join(__dirname, '../../../frontend/src/components/StudentRecordTranscriptComponent.jsx')),
+  TeacherPermissionManagement: componentLoader.add('TeacherPermissionManagement', path.join(__dirname, '../../../frontend/src/components/TeacherPermissionManagement.jsx')),
+  TeacherGradeEntry: componentLoader.add('TeacherGradeEntry', path.join(__dirname, '../../../frontend/src/components/TeacherGradeEntryComponent.jsx')),
+  DateShowDDMMYYYY: componentLoader.add('DateShowDDMMYYYY', path.join(__dirname, '../../../frontend/src/components/DateShowDDMMYYYY.jsx')),
+  DatePickerFlatpickr: componentLoader.add('DatePickerFlatpickr', path.join(__dirname, '../../../frontend/src/components/DatePickerFlatpickr.jsx')),
+  AdminDashboard: componentLoader.add('AdminDashboard', path.join(__dirname, '../../../frontend/src/components/AdminDashboard.jsx')),
+  CustomAdminLogin: componentLoader.add('CustomAdminLogin', path.join(__dirname, '../../../frontend/src/components/CustomAdminLogin.jsx')),
+  GradeHistoryDiff: componentLoader.add('GradeHistoryDiff', path.join(__dirname, '../../../frontend/src/components/GradeHistoryDiff.jsx')),
+  StudentGradeHistoryTab: componentLoader.add('StudentGradeHistoryTab', path.join(__dirname, '../../../frontend/src/components/StudentGradeHistoryTab.jsx')),
 };
 
 // Override login page
-componentLoader.override('Login', path.join(__dirname, '../components/CustomAdminLogin.jsx'));
+componentLoader.override('Login', path.join(__dirname, '../../../frontend/src/components/CustomAdminLogin.jsx'));
 
 // Override default components if needed
 // const OverriddenComponents = {

@@ -1,28 +1,30 @@
-# Student Management System
+# Backend - Student Management System
 
-Hệ thống quản lý điểm sinh viên với kiến trúc tách biệt Frontend/Backend.
+Express.js server với AdminJS v7.
 
-## 📁 Cấu trúc Project
+## 🏗️ Structure
 
 ```
-├── frontend/          # React components & UI
-├── backend/           # Express server & API
-├── docs/              # Documentation
-└── README.md
+backend/
+├── src/
+│   ├── config/       # Server configurations
+│   ├── controllers/  # Request handlers
+│   ├── routes/       # API routes
+│   ├── services/     # Business logic
+│   ├── repositories/ # Database queries
+│   ├── middleware/   # Express middleware
+│   ├── resources/    # AdminJS resources
+│   ├── database/     # Models, migrations, seeders
+│   └── utils/        # Utilities
+├── config/           # Database config
+├── app.js            # Entry point
+└── package.json
 ```
 
-## 🚀 Quick Start
+## 🚀 Development
 
-### Backend
 ```bash
-cd backend
-npm install
 npm run dev
 ```
 
-### Frontend
-AdminJS tự động bundle React components từ `frontend/src/components/`
-
-## 📚 Documentation
-
-Xem thêm tài liệu trong folder `docs/`
+Server runs on http://localhost:3000

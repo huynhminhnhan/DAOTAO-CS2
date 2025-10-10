@@ -7,7 +7,7 @@
  * 3. TBMH < 5 → THI LẠI (RETAKE_EXAM): Chỉ thi lại cuối kỳ
  */
 
-import { Grade, GradeRetake, Enrollment, Student, Subject } from '../backend/database/index.js';
+import { Grade, GradeRetake, Enrollment, Student, Subject } from '../database/index.js';
 
 const RetakeManagementService = {
   

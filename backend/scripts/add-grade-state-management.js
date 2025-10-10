@@ -3,7 +3,7 @@
  * Thêm các column và table để quản lý trạng thái nhập điểm
  */
 
-import { sequelize } from '../src/backend/database/config.js';
+import { sequelize } from '../src/database/config.js';
 
 // Helper function to check if column exists
 const columnExists = async (tableName, columnName) => {

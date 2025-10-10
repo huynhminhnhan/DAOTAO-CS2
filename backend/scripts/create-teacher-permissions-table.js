@@ -3,7 +3,7 @@
  * Chạy: node scripts/create-teacher-permissions-table.js
  */
 
-import { sequelize } from '../src/backend/database/config.js';
+import { sequelize } from '../src/database/config.js';
 
 async function createTeacherPermissionsTable() {
   try {

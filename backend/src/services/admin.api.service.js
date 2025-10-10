@@ -58,7 +58,7 @@ const AdminApiService = {
   },
 
   async getDashboardStats() {
-    const { User, Student, Class, Subject, Grade, Teacher } = await import('../backend/database/index.js');
+    const { User, Student, Class, Subject, Grade, Teacher } = await import('../database/index.js');
     const [usersCount, studentsCount, classesCount, subjectsCount, gradesCount, teachersCount] = await Promise.all([
       User.count(), Student.count(), Class.count(), Subject.count(), Grade.count(), Teacher.count()
     ]);

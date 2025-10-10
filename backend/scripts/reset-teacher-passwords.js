@@ -8,7 +8,7 @@
  *   node scripts/reset-teacher-passwords.js
  */
 
-import { sequelize, User } from '../src/backend/database/index.js';
+import { sequelize, User } from '../src/database/index.js';
 
 const NEW_PASSWORD = '123456';
 

@@ -7,7 +7,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { sequelize, Grade, GradeHistory } from '../src/backend/database/index.js';
+import { sequelize, Grade, GradeHistory } from '../src/database/index.js';
 
 const REQUIRED_COLUMNS = [
   { name: 'studentId', sql: 'INTEGER' },

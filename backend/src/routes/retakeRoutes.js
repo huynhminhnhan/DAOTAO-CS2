@@ -1,5 +1,5 @@
 import express from 'express';
-import { GradeRetake, Grade, Student, ClassSubject, Enrollment } from '../backend/database/index.js';
+import { GradeRetake, Grade, Student, ClassSubject, Enrollment } from '../database/index.js';
 
 const router = express.Router();
 
@@ -304,7 +304,7 @@ router.get('/stats', async (req, res) => {
 router.get('/list', async (req, res) => {
   try {
     // Import additional models
-    const { Student, Subject, ClassSubject } = await import('../backend/database/index.js');
+    const { Student, Subject, ClassSubject } = await import('../database/index.js');
     
     // Lấy tất cả retake records với thông tin liên quan
     const retakeList = await GradeRetake.findAll({
@@ -435,7 +435,7 @@ router.post('/:id/reject', async (req, res) => {
 router.get('/retake-classes', async (req, res) => {
   try {
     // Import ClassSubject model nếu cần
-    const { ClassSubject } = await import('../backend/database/index.js');
+    const { ClassSubject } = await import('../database/index.js');
     
     // Tìm tất cả lớp học có isRetakeClass = true
     const retakeClasses = await ClassSubject.findAll({

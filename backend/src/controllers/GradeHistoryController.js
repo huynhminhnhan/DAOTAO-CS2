@@ -1,4 +1,4 @@
-import { GradeHistory, Grade, Student, User, sequelize } from '../backend/database/index.js';
+import { GradeHistory, Grade, Student, User, sequelize } from '../database/index.js';
 
 class GradeHistoryController {
   // GET /api/grade-history

@@ -3,7 +3,7 @@
  * Middleware xác thực và phân quyền cho giáo viên
  */
 
-import { User, Teacher, Class } from '../backend/database/index.js';
+import { User, Teacher, Class } from '../database/index.js';
 
 // Middleware kiểm tra quyền truy cập theo vai trò
 const checkRole = (allowedRoles) => {

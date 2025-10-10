@@ -1,4 +1,4 @@
-import { Cohort, Semester } from '../backend/database/index.js';
+import { Cohort, Semester } from '../database/index.js';
 
 const AcademicRepository = {
   async findAllCohorts(options = {}) {

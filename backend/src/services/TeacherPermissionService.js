@@ -3,7 +3,7 @@
  * Business logic cho quản lý quyền nhập điểm
  */
 
-import { TeacherPermission, Enrollment, User, Student, Class, Subject, Cohort, Semester, Grade, GradeRetake } from '../backend/database/index.js';
+import { TeacherPermission, Enrollment, User, Student, Class, Subject, Cohort, Semester, Grade, GradeRetake } from '../database/index.js';
 import { Op } from 'sequelize';
 
 class TeacherPermissionService {

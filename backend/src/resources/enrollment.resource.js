@@ -1,10 +1,10 @@
 /**
  * Enrollment Resource - Simple Version
  */
-import { Enrollment } from '../backend/database/index.js';
+import { Enrollment } from '../database/index.js';
 import { Components } from '../config/components.js';
-import Semester from '../backend/database/models/Semester.js';
-import Cohort from '../backend/database/models/Cohort.js';
+import Semester from '../database/models/Semester.js';
+import Cohort from '../database/models/Cohort.js';
 
 const EnrollmentResource = {
   resource: Enrollment,

@@ -4,7 +4,7 @@
  */
 import express from 'express';
 import BulkEnrollmentController from '../controllers/BulkEnrollmentController.js';
-import { requireAdminSession, requireAdminOrTeacher } from '../backend/middleware/session-auth.js';
+import { requireAdminSession, requireAdminOrTeacher } from '../middleware/session-auth.js';
 
 const router = express.Router();
 

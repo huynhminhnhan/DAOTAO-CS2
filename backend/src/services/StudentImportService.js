@@ -1,5 +1,5 @@
 // StudentImportService.js
-import { Student, Class } from '../backend/database/index.js';
+import { Student, Class } from '../database/index.js';
 
 const StudentImportService = {
   async getClasses() {

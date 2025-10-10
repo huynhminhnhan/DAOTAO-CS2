@@ -1,4 +1,4 @@
-import { Enrollment, Student, Grade, GradeRetake, Class, ClassSubject, Subject, Teacher, sequelize } from '../backend/database/index.js';
+import { Enrollment, Student, Grade, GradeRetake, Class, ClassSubject, Subject, Teacher, sequelize } from '../database/index.js';
 
 const GradeRepository = {
   async findEnrollmentsWithGrades({ cohortId, classId, subjectId, semester, academicYear }) {

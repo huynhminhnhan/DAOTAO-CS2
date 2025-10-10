@@ -4,7 +4,7 @@
  */
 
 import { DataTypes } from 'sequelize';
-import { sequelize } from '../src/backend/database/index.js';
+import { sequelize } from '../src/database/index.js';
 
 const migrate = {
   async up() {

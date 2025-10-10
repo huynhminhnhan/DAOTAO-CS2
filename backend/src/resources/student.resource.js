@@ -4,7 +4,7 @@
  * 
  * Note: Teacher permissions are now managed via TeacherPermission model.
  */
-import { Student } from '../backend/database/index.js';
+import { Student } from '../database/index.js';
 import { Components } from '../config/components.js';
 import { getTeacherManagedClassIds } from '../middleware/teacherPermissions.js';
 

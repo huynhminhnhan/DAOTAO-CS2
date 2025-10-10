@@ -8,7 +8,7 @@ const AcademicService = {
 
   async listSemesters() {
     const semesters = await AcademicRepository.findAllSemesters({
-      include: [{ model: (await import('../backend/database/index.js')).Cohort, as: 'cohort', attributes: ['cohortId', 'name'] }],
+      include: [{ model: (await import('../database/index.js')).Cohort, as: 'cohort', attributes: ['cohortId', 'name'] }],
       order: [['cohortId', 'ASC'], ['order', 'ASC']]
     });
     return semesters;
@@ -16,7 +16,7 @@ const AcademicService = {
 
   async listSemestersByCohort(cohortId) {
     const semesters = await AcademicRepository.findSemestersByCohort(cohortId, {
-      include: [{ model: (await import('../backend/database/index.js')).Cohort, as: 'cohort', attributes: ['cohortId', 'name'] }],
+      include: [{ model: (await import('../database/index.js')).Cohort, as: 'cohort', attributes: ['cohortId', 'name'] }],
       order: [['order', 'ASC']]
     });
     return semesters;

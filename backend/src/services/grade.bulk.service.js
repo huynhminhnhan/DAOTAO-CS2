@@ -1,6 +1,6 @@
 import GradeRepository from '../repositories/grade.repository.js';
 import GradeService from './GradeService.js';
-import { sequelize } from '../backend/database/index.js';
+import { sequelize } from '../database/index.js';
 
 const GradeBulkService = {
     async saveBulk({ grades, cohortId, classId, subjectId }, session, reqMeta = {}) {

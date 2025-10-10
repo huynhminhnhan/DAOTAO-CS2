@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import xlsx from 'xlsx';
 import StudentImportController from '../controllers/StudentImportController.js';
-import { requireAdminSession, requireAdmin } from '../backend/middleware/session-auth.js';
+import { requireAdminSession, requireAdmin } from '../middleware/session-auth.js';
 
 const router = express.Router();
 

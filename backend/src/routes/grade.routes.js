@@ -7,8 +7,8 @@
 import express from 'express';
 import GradeApiController from '../controllers/GradeApiController.js';
 import GradeBulkController from '../controllers/GradeBulkController.js';
-import { Grade, Enrollment, GradeHistory } from '../backend/database/index.js';
-import { requireAdminSession, requireAdminOrTeacher } from '../backend/middleware/session-auth.js';
+import { Grade, Enrollment, GradeHistory } from '../database/index.js';
+import { requireAdminSession, requireAdminOrTeacher } from '../middleware/session-auth.js';
 import { checkGradeEntryPermission } from '../middleware/checkTeacherPermission.js';
 
 const router = express.Router();

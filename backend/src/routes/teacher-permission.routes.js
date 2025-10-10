@@ -117,7 +117,7 @@ router.get('/check/:enrollmentId', checkIsTeacher, async (req, res) => {
 router.get('/my-classes', checkIsTeacher, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { Class, TeacherPermission } = await import('../backend/database/index.js');
+    const { Class, TeacherPermission } = await import('../database/index.js');
     
     // Lấy tất cả permissions active của giáo viên
     const permissions = await TeacherPermission.findAll({
@@ -223,7 +223,7 @@ router.get('/my-cohorts', async (req, res) => {
     }
     
     const userId = req.session.adminUser.id;
-    const { Cohort, Class, TeacherPermission } = await import('../backend/database/index.js');
+    const { Cohort, Class, TeacherPermission } = await import('../database/index.js');
     
     // Get all active permissions for teacher
     const permissions = await TeacherPermission.findAll({
@@ -331,7 +331,7 @@ router.get('/my-classes/:cohortId', async (req, res) => {
       });
     }
     
-    const { Class, TeacherPermission } = await import('../backend/database/index.js');
+    const { Class, TeacherPermission } = await import('../database/index.js');
     
     // Get all active permissions for teacher
     const permissions = await TeacherPermission.findAll({

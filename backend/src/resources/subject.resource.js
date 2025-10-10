@@ -3,7 +3,7 @@
  * Cấu hình resource Subject theo chuẩn AdminJS
  */
 
-import { Subject } from '../backend/database/index.js';
+import { Subject } from '../database/index.js';
 import { Components } from '../config/components.js';
 import { getTeacherManagedSubjectIds } from '../middleware/teacherPermissions.js';
 

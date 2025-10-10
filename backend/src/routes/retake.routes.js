@@ -3,7 +3,7 @@
  * API routes cho chức năng thi lại/học lại
  */
 import express from 'express';
-import { GradeRetake, Grade, Student, ClassSubject, Enrollment } from '../backend/database/index.js';
+import { GradeRetake, Grade, Student, ClassSubject, Enrollment } from '../database/index.js';
 
 const router = express.Router();
 
@@ -183,7 +183,7 @@ router.post('/create', async (req, res) => {
 router.get('/list', async (req, res) => {
   try {
     // Import additional models if needed
-    const { Subject } = await import('../backend/database/index.js');
+    const { Subject } = await import('../database/index.js');
     
     // Lấy tất cả retake records với thông tin liên quan
     const retakeList = await GradeRetake.findAll({

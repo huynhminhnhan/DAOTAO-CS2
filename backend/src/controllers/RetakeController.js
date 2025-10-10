@@ -3,7 +3,7 @@
  */
 
 import RetakeManagementService from '../services/RetakeManagementService.js';
-import { Grade, GradeRetake, Student, Subject, Enrollment } from '../backend/database/index.js';
+import { Grade, GradeRetake, Student, Subject, Enrollment } from '../database/index.js';
 
 const RetakeController = {
   

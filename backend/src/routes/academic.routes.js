@@ -3,7 +3,7 @@
  */
 import express from 'express';
 import AcademicController from '../controllers/AcademicController.js';
-import { optionalSession } from "../backend/middleware/session-auth.js";
+import { optionalSession } from '../middleware/session-auth.js';
 
 const router = express.Router();
 

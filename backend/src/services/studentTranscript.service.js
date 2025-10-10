@@ -1,4 +1,4 @@
-import { Student, Grade, Subject, Class, Enrollment, Cohort, Semester } from '../backend/database/index.js';
+import { Student, Grade, Subject, Class, Enrollment, Cohort, Semester } from '../database/index.js';
 
 const StudentTranscriptService = {
   async listStudents() {

@@ -14,7 +14,7 @@
     },ubject Resource Configuration
  * Cấu hình resource ClassSubject cho lịch học lớp-môn theo kỳ
  */
-import { ClassSubject } from '../backend/database/index.js';
+import { ClassSubject } from '../database/index.js';
 
 const ClassSubjectResource = {
   resource: ClassSubject,

@@ -3,7 +3,7 @@
  * Xử lý phân quyền dựa trên bảng teacher_permissions
  */
 
-import { TeacherPermission, Class, Subject, Cohort, Semester, Enrollment } from '../backend/database/index.js';
+import { TeacherPermission, Class, Subject, Cohort, Semester, Enrollment } from '../database/index.js';
 import { Op } from 'sequelize';
 
 /**
@@ -142,7 +142,7 @@ export async function getTeacherManagedStudentIds(userId) {
     }
 
     // Import Student model
-    const { Student } = await import('../backend/database/index.js');
+    const { Student } = await import('../database/index.js');
 
     // Lấy tất cả sinh viên trong các lớp được phân quyền
     const students = await Student.findAll({

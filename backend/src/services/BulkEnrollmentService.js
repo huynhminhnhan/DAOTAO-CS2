@@ -1,5 +1,5 @@
 // BulkEnrollmentService.js
-import { Subject, Student, Class, Enrollment } from '../backend/database/index.js';
+import { Subject, Student, Class, Enrollment } from '../database/index.js';
 
 const BulkEnrollmentService = {
   async getSubjects() {

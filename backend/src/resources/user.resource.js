@@ -6,7 +6,7 @@
  * not through TeacherClassAssignment.
  */
 
-import { User } from '../backend/database/index.js';
+import { User } from '../database/index.js';
 import { Components } from '../config/components.js';
 
 const UserResource = {

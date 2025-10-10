@@ -3,7 +3,7 @@
  * Service quản lý trạng thái và workflow của nhập điểm
  */
 
-import { Grade, User, GradeStateTransition, GradeHistory } from '../backend/database/index.js';
+import { Grade, User, GradeStateTransition, GradeHistory } from '../database/index.js';
 
 class GradeStateService {
   

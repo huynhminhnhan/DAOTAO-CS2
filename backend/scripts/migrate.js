@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { sequelize, syncDatabase } from '../src/backend/database/index.js';
+import { sequelize, syncDatabase } from '../src/database/index.js';
 
 const main = async () => {
   const force = process.argv.includes('--force') || process.env.MYSQL_FORCE_SYNC === 'true';

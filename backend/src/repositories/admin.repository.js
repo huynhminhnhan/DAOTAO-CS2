@@ -1,4 +1,4 @@
-import { Class, Teacher, User, Cohort, Subject } from '../backend/database/index.js';
+import { Class, Teacher, User, Cohort, Subject } from '../database/index.js';
 
 const AdminRepository = {
   async findAllClasses(options = {}) {
@@ -37,7 +37,7 @@ const AdminRepository = {
   },
 
   async findSubjectsByClass(classId) {
-    const { Enrollment } = await import('../backend/database/index.js');
+    const { Enrollment } = await import('../database/index.js');
     
     // Tìm tất cả subjects đã được đăng ký trong lớp này từ bảng Enrollments
     const enrollments = await Enrollment.findAll({

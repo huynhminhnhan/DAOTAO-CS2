@@ -2,8 +2,8 @@
  * Subjects Routes - API for managing subjects
  */
 import express from 'express';
-import { Subject } from '../backend/database/index.js';
-import { optionalSession } from "../backend/middleware/session-auth.js";
+import { Subject } from '../database/index.js';
+import { optionalSession } from '../middleware/session-auth.js';
 
 const router = express.Router();
 

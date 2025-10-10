@@ -3,7 +3,7 @@
  * Design Pattern: Service Layer + Strategy Pattern
  */
 
-import { Grade, GradeHistory, Student, Subject, Class, User, Enrollment, sequelize } from '../backend/database/index.js';
+import { Grade, GradeHistory, Student, Subject, Class, User, Enrollment, sequelize } from '../database/index.js';
 
 class GradeService {
   /**

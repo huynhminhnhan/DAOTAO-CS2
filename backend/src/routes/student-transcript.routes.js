@@ -3,9 +3,9 @@
  * API routes cho bảng điểm sinh viên theo format chuẩn
  */
 import express from 'express';
-import { Student, Grade, Subject, Class, Enrollment, Cohort,Semester } from '../backend/database/index.js';
+import { Student, Grade, Subject, Class, Enrollment, Cohort,Semester } from '../database/index.js';
 import StudentTranscriptController from '../controllers/StudentTranscriptController.js';
-import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from "../backend/middleware/session-auth.js";
+import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from '../middleware/session-auth.js';
 
 const router = express.Router();
 

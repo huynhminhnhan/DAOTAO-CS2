@@ -116,7 +116,7 @@ const AdminApiController = {
       }
 
       // Import TeacherPermission model
-      const { TeacherPermission } = await import('../backend/database/index.js');
+      const { TeacherPermission } = await import('../database/index.js');
       
       // Find the permission first
       const permission = await TeacherPermission.findByPk(id);

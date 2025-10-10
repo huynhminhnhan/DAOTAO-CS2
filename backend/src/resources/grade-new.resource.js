@@ -2,7 +2,7 @@
  * Grade Resource Configuration (Simplified)
  * Cấu hình resource Grade cho điểm số theo kỳ học - Phiên bản đơn giản
  */
-import { Grade } from '../backend/database';
+import { Grade } from '../database';
 
 const GradeResource = {
   resource: Grade,

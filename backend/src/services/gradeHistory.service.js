@@ -1,4 +1,4 @@
-import { User, Student, Class, Subject, GradeHistory } from '../backend/database/index.js';
+import { User, Student, Class, Subject, GradeHistory } from '../database/index.js';
 
 const GradeHistoryService = {
   async enrichListRecords(records) {

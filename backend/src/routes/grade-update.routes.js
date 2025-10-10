@@ -1,6 +1,6 @@
 import express from 'express';
 import GradeUpdateController from '../controllers/GradeUpdateController.js';
-import { requireAdminSession, requireAdminOrTeacher } from '../backend/middleware/session-auth.js';
+import { requireAdminSession, requireAdminOrTeacher } from '../middleware/session-auth.js';
 import { checkGradeEntryPermission } from '../middleware/checkTeacherPermission.js';
 
 const router = express.Router();

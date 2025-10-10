@@ -3,7 +3,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { sequelize } from '../src/backend/database/index.js';
+import { sequelize } from '../src/database/index.js';
 
 const checkDatabaseStatus = async () => {
   try {

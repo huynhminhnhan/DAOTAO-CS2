@@ -4,7 +4,7 @@ import path from 'path';
 // This script expects env variables for MySQL to be set, e.g. in .env
 process.env.DB_DIALECT = 'mysql';
 
-import { sequelize, Student, User, Subject, Class, Teacher, TeacherClassAssignment, ClassSubject, Grade, GradeHistory, Notification, Enrollment, Cohort, Semester } from '../src/backend/database/index.js';
+import { sequelize, Student, User, Subject, Class, Teacher, TeacherClassAssignment, ClassSubject, Grade, GradeHistory, Notification, Enrollment, Cohort, Semester } from '../src/database/index.js';
 
 const IN = path.join(process.cwd(), 'tmp', 'sqlite-export.json');
 
