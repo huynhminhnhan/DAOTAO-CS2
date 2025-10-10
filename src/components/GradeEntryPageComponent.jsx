@@ -28,9 +28,16 @@ const GradeEntryPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
   
   // State để quản lý các sinh viên được unlock (Hybrid Approach)
   const [unlockedStudents, setUnlockedStudents] = useState(new Set());
+  
+  // State Management for Grade Status
+  const [gradeStatuses, setGradeStatuses] = useState({}); // {studentId: {status, lockStatus, ...}}
+  const [processingAction, setProcessingAction] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, DRAFT, PENDING_REVIEW, APPROVED_TX_DK, FINAL_ENTERED, FINALIZED
+  const [showStateHistory, setShowStateHistory] = useState(null); // studentId to show history
   
   // Dynamic grade configuration
   const [gradeConfig, setGradeConfig] = useState({
@@ -49,6 +56,78 @@ const GradeEntryPage = () => {
     }
     const num = Number(value);
     return isNaN(num) ? '' : num.toString();
+  };
+  
+  // Helper functions for grade status (Admin version)
+  const getStatusColor = (status) => {
+    const colors = {
+      'DRAFT': '#6c757d',
+      'PENDING_REVIEW': '#ffc107',
+      'APPROVED_TX_DK': '#17a2b8',
+      'FINAL_ENTERED': '#007bff',
+      'FINALIZED': '#28a745'
+    };
+    return colors[status] || '#6c757d';
+  };
+  
+  const getStatusText = (status) => {
+    const texts = {
+      'DRAFT': 'Bản nháp',
+      'PENDING_REVIEW': 'Chờ duyệt',
+      'APPROVED_TX_DK': 'Đã duyệt TX/ĐK',
+      'FINAL_ENTERED': 'Đã nhập điểm thi',
+      'FINALIZED': 'Hoàn tất'
+    };
+    return texts[status] || status;
+  };
+  
+  const canEditGrade = (studentId, fieldName) => {
+    const gradeStatus = gradeStatuses[studentId];
+    if (!gradeStatus) return true; // New grade, admin can edit
+    
+    // Admin can always edit unless FINALIZED
+    if (gradeStatus.gradeStatus === 'FINALIZED') {
+      return false;
+    }
+    
+    // Check field-level locks
+    if (fieldName && gradeStatus.lockStatus) {
+      if (fieldName === 'txScore' && gradeStatus.lockStatus.txLocked) return false;
+      if (fieldName === 'dkScore' && gradeStatus.lockStatus.dkLocked) return false;
+      if (fieldName === 'finalScore' && gradeStatus.lockStatus.finalLocked) return false;
+    }
+    
+    return true;
+  };
+  
+  const isFieldLocked = (studentId, fieldName) => {
+    const gradeStatus = gradeStatuses[studentId];
+    if (!gradeStatus || !gradeStatus.lockStatus) return false;
+    
+    if (fieldName === 'txScore') return gradeStatus.lockStatus.txLocked === true;
+    if (fieldName === 'dkScore') return gradeStatus.lockStatus.dkLocked === true;
+    if (fieldName === 'finalScore') return gradeStatus.lockStatus.finalLocked === true;
+    return false;
+  };
+  
+  const canApprove = (studentId) => {
+    const gradeStatus = gradeStatuses[studentId];
+    return gradeStatus && gradeStatus.gradeStatus === 'PENDING_REVIEW';
+  };
+  
+  const canEnterFinal = (studentId) => {
+    const gradeStatus = gradeStatuses[studentId];
+    return gradeStatus && gradeStatus.gradeStatus === 'APPROVED_TX_DK';
+  };
+  
+  const canFinalize = (studentId) => {
+    const gradeStatus = gradeStatuses[studentId];
+    return gradeStatus && gradeStatus.gradeStatus === 'FINAL_ENTERED';
+  };
+  
+  const canReject = (studentId) => {
+    const gradeStatus = gradeStatuses[studentId];
+    return gradeStatus && ['PENDING_REVIEW', 'APPROVED_TX_DK', 'FINAL_ENTERED'].includes(gradeStatus.gradeStatus);
   };
   
   // Add handlers for dynamic columns
@@ -420,11 +499,35 @@ const GradeEntryPage = () => {
                 letterGrade: student.letterGrade || '',
                 isPassed: student.isPassed,
                 notes: student.notes || '',
-                lastUpdated: student.lastUpdated
+                lastUpdated: student.lastUpdated,
+                // State management fields
+                gradeStatus: student.gradeStatus || 'DRAFT',
+                lockStatus: student.lockStatus || { txLocked: false, dkLocked: false, finalLocked: false },
+                submittedForReviewAt: student.submittedForReviewAt,
+                approvedBy: student.approvedBy,
+                approvedAt: student.approvedAt,
+                finalizedAt: student.finalizedAt
               }
             }));
 
             setStudents(formattedStudents);
+            
+            // Load grade statuses
+            const statuses = {};
+            formattedStudents.forEach(student => {
+              if (student.params.gradeId) {
+                statuses[student.id] = {
+                  gradeId: student.params.gradeId,
+                  gradeStatus: student.params.gradeStatus,
+                  lockStatus: student.params.lockStatus,
+                  submittedForReviewAt: student.params.submittedForReviewAt,
+                  approvedBy: student.params.approvedBy,
+                  approvedAt: student.params.approvedAt,
+                  finalizedAt: student.params.finalizedAt
+                };
+              }
+            });
+            setGradeStatuses(statuses);
           } else {
             console.error('❌ API returned success=false:', data.message);
             setError('Lỗi từ server: ' + (data.message || 'Không thể tải danh sách sinh viên'));
@@ -653,6 +756,200 @@ const GradeEntryPage = () => {
     });
   };
 
+  // State Management Actions (Admin only)
+  const handleApproveTxDk = async (studentId) => {
+    const gradeStatus = gradeStatuses[studentId];
+    if (!gradeStatus || !gradeStatus.gradeId) {
+      alert('Không tìm thấy điểm để duyệt');
+      return;
+    }
+    
+    if (!confirm('Bạn có chắc muốn duyệt điểm TX/ĐK này?\nSau khi duyệt, điểm TX và ĐK sẽ bị khóa.')) {
+      return;
+    }
+    
+    try {
+      setProcessingAction(true);
+      const response = await fetch('/admin-api/grade/state/approve-tx-dk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          gradeId: gradeStatus.gradeId,
+          reason: 'Admin duyệt điểm TX và ĐK'
+        })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        alert('✅ Đã duyệt điểm TX/ĐK thành công!');
+        // Reload data
+        window.dispatchEvent(new Event('reload'));
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      alert('❌ Lỗi: ' + error.message);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+  
+  const handleEnterFinalScore = async (studentId, finalScore) => {
+    const gradeStatus = gradeStatuses[studentId];
+    if (!gradeStatus || !gradeStatus.gradeId) {
+      alert('Không tìm thấy điểm');
+      return;
+    }
+    
+    if (!finalScore || finalScore === '') {
+      alert('Vui lòng nhập điểm thi cuối kỳ');
+      return;
+    }
+    
+    try {
+      setProcessingAction(true);
+      const response = await fetch('/admin-api/grade/state/enter-final', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          gradeId: gradeStatus.gradeId,
+          finalScore: parseFloat(finalScore),
+          reason: 'Admin nhập điểm thi cuối kỳ'
+        })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        alert('✅ Đã nhập điểm thi thành công!');
+        window.dispatchEvent(new Event('reload'));
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      alert('❌ Lỗi: ' + error.message);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+  
+  const handleFinalize = async (studentId) => {
+    const gradeStatus = gradeStatuses[studentId];
+    if (!gradeStatus || !gradeStatus.gradeId) {
+      alert('Không tìm thấy điểm');
+      return;
+    }
+    
+    if (!confirm('Bạn có chắc muốn hoàn tất điểm này?\nSau khi hoàn tất, TẤT CẢ các trường sẽ bị khóa và công bố cho sinh viên.')) {
+      return;
+    }
+    
+    try {
+      setProcessingAction(true);
+      const response = await fetch('/admin-api/grade/state/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          gradeId: gradeStatus.gradeId,
+          reason: 'Admin hoàn tất và công bố điểm'
+        })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        alert('✅ Đã hoàn tất điểm thành công!');
+        window.dispatchEvent(new Event('reload'));
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      alert('❌ Lỗi: ' + error.message);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+  
+  const handleReject = async (studentId) => {
+    const gradeStatus = gradeStatuses[studentId];
+    if (!gradeStatus || !gradeStatus.gradeId) {
+      alert('Không tìm thấy điểm');
+      return;
+    }
+    
+    const reason = prompt('Vui lòng nhập lý do từ chối:');
+    if (!reason || reason.trim() === '') {
+      alert('Vui lòng nhập lý do từ chối');
+      return;
+    }
+    
+    try {
+      setProcessingAction(true);
+      const response = await fetch('/admin-api/grade/state/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          gradeId: gradeStatus.gradeId,
+          reason: reason
+        })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        alert('✅ Đã từ chối điểm. Giáo viên có thể chỉnh sửa lại.');
+        window.dispatchEvent(new Event('reload'));
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      alert('❌ Lỗi: ' + error.message);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+  
+  const handleEmergencyUnlock = async (studentId, fieldName) => {
+    const gradeStatus = gradeStatuses[studentId];
+    if (!gradeStatus || !gradeStatus.gradeId) {
+      alert('Không tìm thấy điểm');
+      return;
+    }
+    
+    const reason = prompt(`Mở khóa khẩn cấp cho ${fieldName}.\nVui lòng nhập lý do:`);
+    if (!reason || reason.trim() === '') {
+      alert('Vui lòng nhập lý do mở khóa');
+      return;
+    }
+    
+    try {
+      setProcessingAction(true);
+      const response = await fetch('/admin-api/grade/state/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          gradeId: gradeStatus.gradeId,
+          fieldName: fieldName,
+          reason: reason
+        })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        alert(`✅ Đã mở khóa ${fieldName} thành công!`);
+        window.dispatchEvent(new Event('reload'));
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      alert('❌ Lỗi: ' + error.message);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
   const saveGrades = async () => {
     try {
       setLoading(true);
@@ -740,6 +1037,26 @@ const GradeEntryPage = () => {
         throw new Error(result.message || 'Lỗi không xác định từ server');
       }
 
+      // ✅ Update gradeStatuses with new gradeIds from response
+      if (result.results && result.results.details) {
+        const newStatuses = { ...gradeStatuses };
+        result.results.details.forEach(detail => {
+          if (detail.gradeId && detail.studentId) {
+            newStatuses[detail.studentId] = {
+              gradeId: detail.gradeId,
+              gradeStatus: 'DRAFT', // Newly saved grades are in DRAFT status
+              lockStatus: { txLocked: false, dkLocked: false, finalLocked: false },
+              submittedForReviewAt: null,
+              approvedBy: null,
+              approvedAt: null,
+              finalizedAt: null
+            };
+          }
+        });
+        setGradeStatuses(newStatuses);
+        console.log('✅ Updated gradeStatuses after save:', newStatuses);
+      }
+
       // Success feedback
       const successMessage = `✅ Đã lưu thành công ${studentsWithGrades.length} bản ghi điểm!`;
       alert(successMessage);
@@ -748,6 +1065,7 @@ const GradeEntryPage = () => {
     } catch (error) {
       console.error('❌ Error saving grades:', error);
       setError('Không thể lưu điểm: ' + error.message);
+      alert('❌ Lỗi: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -1070,8 +1388,11 @@ const GradeEntryPage = () => {
                     <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '80px' }}>
                       TBMH
                     </th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '140px' }}>
+                      Trạng thái điểm
+                    </th>
                     <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '120px' }}>
-                      Trạng thái
+                      Trạng thái SV
                     </th>
                     <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '120px' }}>
                       Xếp loại
@@ -1081,6 +1402,9 @@ const GradeEntryPage = () => {
                     </th>
                     <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '200px' }}>
                       Thi lại/Học lại
+                    </th>
+                    <th style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center', minWidth: '250px' }}>
+                      Thao tác
                     </th>
                   </tr>
                 </thead>
@@ -1383,6 +1707,195 @@ const GradeEntryPage = () => {
                                   </button>
                                 )}
                               </>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Trạng thái điểm - Grade Status Badge */}
+                        <td style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'center', verticalAlign: 'middle' }}>
+                          {gradeStatuses[student.id] ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                              <span style={{
+                                display: 'inline-block',
+                                padding: '4px 8px',
+                                borderRadius: '12px',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                backgroundColor: getStatusColor(gradeStatuses[student.id].gradeStatus),
+                                color: 'white',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {getStatusText(gradeStatuses[student.id].gradeStatus)}
+                              </span>
+                              
+                              {/* Lock indicators */}
+                              <div style={{ display: 'flex', gap: '4px', fontSize: '10px' }}>
+                                {isFieldLocked(student.id, 'txScore') && (
+                                  <span title="TX đã khóa" style={{ color: '#dc3545' }}>🔒TX</span>
+                                )}
+                                {isFieldLocked(student.id, 'dkScore') && (
+                                  <span title="ĐK đã khóa" style={{ color: '#dc3545' }}>🔒ĐK</span>
+                                )}
+                                {isFieldLocked(student.id, 'finalScore') && (
+                                  <span title="Final đã khóa" style={{ color: '#dc3545' }}>🔒Final</span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span style={{ 
+                              fontSize: '11px', 
+                              color: '#6c757d',
+                              padding: '4px 8px',
+                              backgroundColor: '#f8f9fa',
+                              borderRadius: '12px'
+                            }}>
+                              Bản nháp
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Thao tác - Admin Actions */}
+                        <td style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'center', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'center' }}>
+                            {/* Approve TX/ĐK button - shown when PENDING_REVIEW */}
+                            {canApprove(student.id) && (
+                              <button 
+                                onClick={() => handleApproveTxDk(student.id)} 
+                                disabled={processingAction}
+                                style={{ 
+                                  fontSize: '11px', 
+                                  padding: '4px 8px', 
+                                  backgroundColor: '#17a2b8', 
+                                  color: 'white', 
+                                  border: 'none', 
+                                  borderRadius: '3px', 
+                                  cursor: processingAction ? 'not-allowed' : 'pointer',
+                                  opacity: processingAction ? 0.6 : 1,
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="Duyệt điểm TX và ĐK, khóa 2 điểm này lại"
+                              >
+                                ✅ Duyệt TX/ĐK
+                              </button>
+                            )}
+                            
+                            {/* Enter Final Score button - shown when APPROVED_TX_DK */}
+                            {canEnterFinal(student.id) && (
+                              <button 
+                                onClick={() => {
+                                  const finalScore = prompt('Nhập điểm thi cuối kỳ (0-10):');
+                                  if (finalScore !== null && finalScore !== '') {
+                                    handleEnterFinalScore(student.id, finalScore);
+                                  }
+                                }}
+                                disabled={processingAction}
+                                style={{ 
+                                  fontSize: '11px', 
+                                  padding: '4px 8px', 
+                                  backgroundColor: '#007bff', 
+                                  color: 'white', 
+                                  border: 'none', 
+                                  borderRadius: '3px', 
+                                  cursor: processingAction ? 'not-allowed' : 'pointer',
+                                  opacity: processingAction ? 0.6 : 1,
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="Nhập điểm thi cuối kỳ và khóa điểm final"
+                              >
+                                📝 Nhập điểm thi
+                              </button>
+                            )}
+                            
+                            {/* Finalize button - shown when FINAL_ENTERED */}
+                            {canFinalize(student.id) && (
+                              <button 
+                                onClick={() => handleFinalize(student.id)}
+                                disabled={processingAction}
+                                style={{ 
+                                  fontSize: '11px', 
+                                  padding: '4px 8px', 
+                                  backgroundColor: '#28a745', 
+                                  color: 'white', 
+                                  border: 'none', 
+                                  borderRadius: '3px', 
+                                  cursor: processingAction ? 'not-allowed' : 'pointer',
+                                  opacity: processingAction ? 0.6 : 1,
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="Hoàn tất và khóa toàn bộ điểm - không thể sửa"
+                              >
+                                🎯 Hoàn tất
+                              </button>
+                            )}
+                            
+                            {/* Reject button - shown when can reject (not DRAFT or FINALIZED) */}
+                            {canReject(student.id) && (
+                              <button 
+                                onClick={() => handleReject(student.id)}
+                                disabled={processingAction}
+                                style={{ 
+                                  fontSize: '11px', 
+                                  padding: '4px 8px', 
+                                  backgroundColor: '#dc3545', 
+                                  color: 'white', 
+                                  border: 'none', 
+                                  borderRadius: '3px', 
+                                  cursor: processingAction ? 'not-allowed' : 'pointer',
+                                  opacity: processingAction ? 0.6 : 1,
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="Từ chối và trả về trạng thái Bản nháp"
+                              >
+                                ❌ Từ chối
+                              </button>
+                            )}
+                            
+                            {/* Emergency Unlock button - shown when any field is locked */}
+                            {(isFieldLocked(student.id, 'txScore') || 
+                              isFieldLocked(student.id, 'dkScore') || 
+                              isFieldLocked(student.id, 'finalScore')) && (
+                              <button 
+                                onClick={() => {
+                                  const field = prompt('Mở khóa trường nào?\n(txScore / dkScore / finalScore)');
+                                  if (field && ['txScore', 'dkScore', 'finalScore'].includes(field)) {
+                                    handleEmergencyUnlock(student.id, field);
+                                  } else if (field) {
+                                    alert('Tên trường không hợp lệ. Vui lòng nhập: txScore, dkScore hoặc finalScore');
+                                  }
+                                }}
+                                disabled={processingAction}
+                                style={{ 
+                                  fontSize: '10px', 
+                                  padding: '3px 6px', 
+                                  backgroundColor: '#ffc107', 
+                                  color: '#000', 
+                                  border: 'none', 
+                                  borderRadius: '3px', 
+                                  cursor: processingAction ? 'not-allowed' : 'pointer',
+                                  opacity: processingAction ? 0.6 : 1,
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title="Khẩn cấp mở khóa điểm đã khóa (cần lý do)"
+                              >
+                                🔓 Mở khóa
+                              </button>
+                            )}
+                            
+                            {/* Show "No actions" when grade is finalized or draft without pending status */}
+                            {(!canApprove(student.id) && 
+                              !canEnterFinal(student.id) && 
+                              !canFinalize(student.id) && 
+                              !canReject(student.id) &&
+                              !isFieldLocked(student.id, 'txScore') &&
+                              !isFieldLocked(student.id, 'dkScore') &&
+                              !isFieldLocked(student.id, 'finalScore')) && (
+                              <span style={{ 
+                                fontSize: '10px', 
+                                color: '#6c757d',
+                                fontStyle: 'italic'
+                              }}>
+                                {gradeStatuses[student.id]?.gradeStatus === 'FINALIZED' ? '✓ Đã hoàn tất' : '-'}
+                              </span>
                             )}
                           </div>
                         </td>

@@ -70,6 +70,11 @@ export const setupRoutes = async (app) => {
   app.use('/admin-api', gradeHistoryRoutes);
   console.log('✅ Grade history routes loaded (session-based)');
 
+  // Grade state management routes (submit/approve/finalize workflow)
+  const gradeStateRoutes = (await import('./grade-state.routes.js')).default;
+  app.use('/admin-api/grade/state', gradeStateRoutes);
+  console.log('✅ Grade state management routes loaded (session-based)');
+
   // ==========================================
   // 5. ENROLLMENT ROUTES (Session-based)
   // ==========================================

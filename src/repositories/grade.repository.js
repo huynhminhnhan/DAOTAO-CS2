@@ -87,7 +87,10 @@ const GradeRepository = {
   },
 
   async findStudentByIdAndClass(studentId, classId, options = {}) {
-    return Student.findOne({ where: { id: studentId, classId }, ...options });
+    // Changed: Don't check classId in Student table
+    // Instead, just verify the student exists
+    // The enrollment check will verify if student is in the class
+    return Student.findByPk(studentId, options);
   },
 
   async findEnrollment({ studentId, classId, subjectId, cohortId }, options = {}) {

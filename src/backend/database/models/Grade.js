@@ -181,6 +181,91 @@ const Grade = sequelize.define('Grade', {
     allowNull: true,
     comment: 'Ghi chú thêm'
   },
+  // State Management Fields
+  gradeStatus: {
+    type: DataTypes.ENUM('DRAFT', 'PENDING_REVIEW', 'APPROVED_TX_DK', 'FINAL_ENTERED', 'FINALIZED'),
+    allowNull: false,
+    defaultValue: 'DRAFT',
+    field: 'grade_status',
+    comment: 'Trạng thái điểm: DRAFT (giáo viên đang nhập) → PENDING_REVIEW (chờ duyệt) → APPROVED_TX_DK (đã duyệt TX/ĐK) → FINAL_ENTERED (đã nhập điểm thi) → FINALIZED (hoàn thành)'
+  },
+  lockStatus: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    field: 'lock_status',
+    comment: 'Trạng thái khóa các trường điểm: {txLocked: boolean, dkLocked: boolean, finalLocked: boolean}',
+    defaultValue: {
+      txLocked: false,
+      dkLocked: false,
+      finalLocked: false
+    }
+  },
+  lockedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'locked_by',
+    comment: 'ID người dùng khóa điểm',
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL'
+  },
+  lockedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'locked_at',
+    comment: 'Thời điểm khóa'
+  },
+  submittedForReviewAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'submitted_for_review_at',
+    comment: 'Thời điểm giáo viên nộp điểm để duyệt'
+  },
+  approvedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'approved_by',
+    comment: 'ID admin duyệt điểm TX/ĐK',
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL'
+  },
+  approvedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'approved_at',
+    comment: 'Thời điểm duyệt điểm TX/ĐK'
+  },
+  finalizedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'finalized_by',
+    comment: 'ID admin hoàn tất điểm',
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL'
+  },
+  finalizedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'finalized_at',
+    comment: 'Thời điểm hoàn tất điểm'
+  },
+  version: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 1,
+    comment: 'Phiên bản điểm (dùng cho optimistic locking)'
+  },
   createdAt: {
     type: DataTypes.DATE,
     allowNull: false,
@@ -204,6 +289,12 @@ const Grade = sequelize.define('Grade', {
     },
     {
       fields: ['enrollment_id']
+    },
+    {
+      fields: ['grade_status']
+    },
+    {
+      fields: ['locked_by']
     }
   ]
 });
@@ -240,6 +331,85 @@ Grade.prototype.addDkScore = function(index, score) {
   this.changed('dkScore', true); // Mark as changed for Sequelize
 };
 
+// State Management Instance Methods
+Grade.prototype.getStatus = function() {
+  return this.gradeStatus;
+};
+
+Grade.prototype.isLocked = function(fieldName) {
+  if (!this.lockStatus) return false;
+  
+  switch (fieldName) {
+    case 'txScore':
+      return this.lockStatus.txLocked === true;
+    case 'dkScore':
+      return this.lockStatus.dkLocked === true;
+    case 'finalScore':
+      return this.lockStatus.finalLocked === true;
+    default:
+      return false;
+  }
+};
+
+Grade.prototype.canEdit = function(userId, userRole, fieldName) {
+  // If field is locked, no one can edit
+  if (this.isLocked(fieldName)) {
+    return false;
+  }
+
+  // FINALIZED state - no editing allowed
+  if (this.gradeStatus === 'FINALIZED') {
+    return false;
+  }
+
+  // Admin can edit in any non-finalized state
+  if (userRole === 'admin') {
+    return true;
+  }
+
+  // Teacher can only edit in DRAFT state
+  if (userRole === 'teacher') {
+    if (this.gradeStatus !== 'DRAFT') {
+      return false;
+    }
+    // Teachers can only edit TX and DK scores
+    return fieldName === 'txScore' || fieldName === 'dkScore';
+  }
+
+  return false;
+};
+
+Grade.prototype.isDraft = function() {
+  return this.gradeStatus === 'DRAFT';
+};
+
+Grade.prototype.isPendingReview = function() {
+  return this.gradeStatus === 'PENDING_REVIEW';
+};
+
+Grade.prototype.isApprovedTxDk = function() {
+  return this.gradeStatus === 'APPROVED_TX_DK';
+};
+
+Grade.prototype.isFinalEntered = function() {
+  return this.gradeStatus === 'FINAL_ENTERED';
+};
+
+Grade.prototype.isFinalized = function() {
+  return this.gradeStatus === 'FINALIZED';
+};
+
+Grade.prototype.getStatusDisplay = function() {
+  const statusMap = {
+    'DRAFT': 'Bản nháp',
+    'PENDING_REVIEW': 'Chờ duyệt',
+    'APPROVED_TX_DK': 'Đã duyệt TX/ĐK',
+    'FINAL_ENTERED': 'Đã nhập điểm thi',
+    'FINALIZED': 'Hoàn tất'
+  };
+  return statusMap[this.gradeStatus] || this.gradeStatus;
+};
+
 // Associations
 Grade.associate = (models) => {
   Grade.belongsTo(models.Student, {
@@ -263,6 +433,28 @@ Grade.associate = (models) => {
     foreignKey: 'originalGradeId',
     as: 'retakes',
     onDelete: 'CASCADE'
+  });
+
+  // State Management Associations
+  Grade.hasMany(models.GradeStateTransition, {
+    foreignKey: 'gradeId',
+    as: 'stateTransitions',
+    onDelete: 'CASCADE'
+  });
+
+  Grade.belongsTo(models.User, {
+    foreignKey: 'lockedBy',
+    as: 'lockedByUser'
+  });
+
+  Grade.belongsTo(models.User, {
+    foreignKey: 'approvedBy',
+    as: 'approvedByUser'
+  });
+
+  Grade.belongsTo(models.User, {
+    foreignKey: 'finalizedBy',
+    as: 'finalizedByUser'
   });
 };
 

@@ -27,7 +27,7 @@ const GradeBulkService = {
                     const { studentId, txScore, dkScore, finalScore, tbktScore, tbmhScore, isRetake, notes, semester = 'HK1', academicYear = '2024-25' } = gradeData;
 
                     const student = await GradeRepository.findStudentByIdAndClass(studentId, classId, txOptions);
-                    if (!student) { throw new Error(`Sinh viên ID ${studentId} không tồn tại hoặc không thuộc lớp này`); }
+                    if (!student) { throw new Error(`Sinh viên ID ${studentId} không tồn tại trong hệ thống`); }
 
                     let enrollment = await GradeRepository.findEnrollment({ studentId, classId, subjectId, cohortId }, txOptions);
                     if (!enrollment) {

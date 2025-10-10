@@ -26,6 +26,11 @@ const TeacherGradeEntry = () => {
   const [error, setError] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   
+  // State Management
+  const [gradeStatuses, setGradeStatuses] = useState({}); // {studentId: {status, lockStatus, ...}}
+  const [submitting, setSubmitting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, DRAFT, PENDING_REVIEW, APPROVED_TX_DK
+  
   // Dynamic grade configuration
   const [gradeConfig, setGradeConfig] = useState({
     txColumns: 1,
@@ -43,6 +48,46 @@ const TeacherGradeEntry = () => {
     }
     const num = Number(value);
     return isNaN(num) ? '' : num.toString();
+  };
+  
+  // Helper functions for grade status
+  const getStatusColor = (status) => {
+    const colors = {
+      'DRAFT': '#6c757d',
+      'PENDING_REVIEW': '#ffc107',
+      'APPROVED_TX_DK': '#17a2b8',
+      'FINAL_ENTERED': '#007bff',
+      'FINALIZED': '#28a745'
+    };
+    return colors[status] || '#6c757d';
+  };
+  
+  const getStatusText = (status) => {
+    const texts = {
+      'DRAFT': 'Bản nháp',
+      'PENDING_REVIEW': 'Chờ duyệt',
+      'APPROVED_TX_DK': 'Đã duyệt TX/ĐK',
+      'FINAL_ENTERED': 'Đã nhập điểm thi',
+      'FINALIZED': 'Hoàn tất'
+    };
+    return texts[status] || status;
+  };
+  
+  const canEditGrade = (studentId) => {
+    const gradeStatus = gradeStatuses[studentId];
+    if (!gradeStatus) return true; // New grade, can edit
+    
+    // Teacher can only edit in DRAFT status
+    return gradeStatus.gradeStatus === 'DRAFT';
+  };
+  
+  const isFieldLocked = (studentId, fieldName) => {
+    const gradeStatus = gradeStatuses[studentId];
+    if (!gradeStatus || !gradeStatus.lockStatus) return false;
+    
+    if (fieldName === 'txScore') return gradeStatus.lockStatus.txLocked === true;
+    if (fieldName === 'dkScore') return gradeStatus.lockStatus.dkLocked === true;
+    return false;
   };
   
   // Add handlers for dynamic columns
@@ -302,11 +347,31 @@ const TeacherGradeEntry = () => {
                 letterGrade: student.letterGrade || '',
                 isPassed: student.isPassed,
                 notes: student.notes || '',
-                lastUpdated: student.lastUpdated
+                lastUpdated: student.lastUpdated,
+                // State management fields
+                gradeStatus: student.gradeStatus || 'DRAFT',
+                lockStatus: student.lockStatus || { txLocked: false, dkLocked: false, finalLocked: false },
+                submittedForReviewAt: student.submittedForReviewAt,
+                approvedAt: student.approvedAt
               }
             }));
 
             setStudents(formattedStudents);
+            
+            // Load grade statuses
+            const statuses = {};
+            formattedStudents.forEach(student => {
+              if (student.params.gradeId) {
+                statuses[student.id] = {
+                  gradeId: student.params.gradeId,
+                  gradeStatus: student.params.gradeStatus,
+                  lockStatus: student.params.lockStatus,
+                  submittedForReviewAt: student.params.submittedForReviewAt,
+                  approvedAt: student.params.approvedAt
+                };
+              }
+            });
+            setGradeStatuses(statuses);
           } else {
             console.error('❌ API returned success=false:', data.message);
             setError('Lỗi từ server: ' + (data.message || 'Không thể tải danh sách sinh viên'));
@@ -480,6 +545,98 @@ const TeacherGradeEntry = () => {
     });
   };
 
+  const submitForReview = async (studentIds) => {
+    try {
+      setSubmitting(true);
+      setError('');
+      
+      console.log('📤 Submitting grades for review:', { studentIds, gradeStatuses });
+      
+      // Get grade IDs for students
+      const gradeIds = studentIds
+        .map(sid => {
+          const gradeId = gradeStatuses[sid]?.gradeId;
+          if (!gradeId) {
+            console.warn(`⚠️ Student ${sid} không có gradeId trong gradeStatuses`);
+          }
+          return gradeId;
+        })
+        .filter(gid => gid);
+      
+      console.log('📤 Grade IDs to submit:', gradeIds);
+      
+      if (gradeIds.length === 0) {
+        throw new Error('Không có điểm nào để nộp duyệt.\n\n⚠️ Lưu ý: Các điểm phải được LƯU vào hệ thống trước khi có thể nộp duyệt.\n\nVui lòng:\n1. Click "💾 Lưu điểm" trước\n2. Sau đó mới click "📤 Nộp điểm để duyệt"');
+      }
+      
+      const response = await fetch('/admin-api/grade/state/bulk-submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          gradeIds: gradeIds,
+          reason: 'Giáo viên nộp điểm TX và ĐK để admin duyệt'
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Lỗi không xác định từ server');
+      }
+      
+      console.log('✅ Submit result:', result);
+      
+      const successCount = result.data?.successCount || 0;
+      const failedCount = result.data?.failedCount || 0;
+      
+      if (successCount > 0) {
+        // Update gradeStatuses to PENDING_REVIEW for successfully submitted grades
+        const newStatuses = { ...gradeStatuses };
+        if (result.data?.results) {
+          result.data.results.forEach(item => {
+            if (item.success && item.gradeId) {
+              // Find student ID by gradeId
+              const studentId = Object.keys(newStatuses).find(
+                sid => newStatuses[sid].gradeId === item.gradeId
+              );
+              if (studentId) {
+                newStatuses[studentId] = {
+                  ...newStatuses[studentId],
+                  gradeStatus: 'PENDING_REVIEW',
+                  submittedForReviewAt: new Date().toISOString()
+                };
+              }
+            }
+          });
+        }
+        setGradeStatuses(newStatuses);
+        
+        const message = failedCount > 0 
+          ? `✅ Đã nộp ${successCount}/${gradeIds.length} điểm để duyệt!\n\n⚠️ ${failedCount} điểm không thể nộp (có thể đã được nộp trước đó).`
+          : `✅ Đã nộp ${successCount}/${gradeIds.length} điểm để duyệt thành công!\n\nAdmin sẽ kiểm tra và duyệt điểm của bạn.`;
+        
+        alert(message);
+      } else {
+        alert(`⚠️ Không có điểm nào được nộp duyệt.\n\nLý do: ${failedCount} điểm không đáp ứng điều kiện (có thể đã được nộp hoặc đã duyệt).`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error submitting grades for review:', error);
+      setError('Không thể nộp điểm: ' + error.message);
+      alert('❌ Lỗi: ' + error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const saveGrades = async () => {
     try {
       setLoading(true);
@@ -570,14 +727,39 @@ const TeacherGradeEntry = () => {
         throw new Error(result.message || 'Lỗi không xác định từ server');
       }
 
+      // Update gradeStatuses with new gradeIds from response
+      console.log('📊 Save result:', result);
+      
+      if (result.results && result.results.details) {
+        const newStatuses = { ...gradeStatuses };
+        console.log('🔄 Processing details:', result.results.details);
+        
+        result.results.details.forEach(detail => {
+          console.log('  - Detail:', detail);
+          if (detail.gradeId && detail.studentId) {
+            newStatuses[detail.studentId] = {
+              gradeId: detail.gradeId,
+              gradeStatus: 'DRAFT', // Newly saved grades are in DRAFT status
+              lockStatus: { txLocked: false, dkLocked: false, finalLocked: false },
+              submittedForReviewAt: null,
+              approvedAt: null
+            };
+            console.log(`  ✅ Updated status for student ${detail.studentId} with gradeId ${detail.gradeId}`);
+          } else {
+            console.warn(`  ⚠️ Missing gradeId or studentId:`, detail);
+          }
+        });
+        
+        setGradeStatuses(newStatuses);
+        console.log('✅ Updated gradeStatuses after save:', newStatuses);
+      } else {
+        console.warn('⚠️ No results.details in response:', result);
+      }
+
       // Success feedback
       const successMessage = `✅ Đã lưu thành công ${studentsWithGrades.length} bản ghi điểm!`;
       alert(successMessage);
       setError('');
-      
-      // Reload students to get updated data
-      const reloadEvent = new Event('reload');
-      window.dispatchEvent(reloadEvent);
       
     } catch (error) {
       console.error('❌ Error saving grades:', error);
@@ -890,6 +1072,7 @@ const TeacherGradeEntry = () => {
                       <th style={{ padding: '10px', border: '1px solid #dee2e6', minWidth: '50px' }}>STT</th>
                       <th style={{ padding: '10px', border: '1px solid #dee2e6', minWidth: '100px' }}>Mã SV</th>
                       <th style={{ padding: '10px', border: '1px solid #dee2e6', minWidth: '180px' }}>Họ và tên</th>
+                      <th style={{ padding: '10px', border: '1px solid #dee2e6', minWidth: '120px' }}>Trạng thái</th>
                       
                       {/* TX Columns */}
                       {Array.from({ length: gradeConfig.txColumns }, (_, i) => (
@@ -897,7 +1080,7 @@ const TeacherGradeEntry = () => {
                           padding: '10px', 
                           border: '1px solid #dee2e6',
                           minWidth: '70px',
-                          backgroundColor: '#e3f2fd'
+                          backgroundColor: '#007bff'
                         }}>
                           TX{i + 1}
                         </th>
@@ -909,7 +1092,7 @@ const TeacherGradeEntry = () => {
                           padding: '10px', 
                           border: '1px solid #dee2e6',
                           minWidth: '70px',
-                          backgroundColor: '#fff3e0'
+                          backgroundColor: '#007bff'
                         }}>
                           ĐK{i + 1}
                         </th>
@@ -919,7 +1102,7 @@ const TeacherGradeEntry = () => {
                         padding: '10px', 
                         border: '1px solid #dee2e6',
                         minWidth: '80px',
-                        backgroundColor: '#c8e6c9'
+                        backgroundColor: '#007bff'
                       }}>
                         TBKT
                       </th>
@@ -932,6 +1115,12 @@ const TeacherGradeEntry = () => {
                       const studentGrades = grades[student.id] || {};
                       const txScore = studentGrades.txScore || {};
                       const dkScore = studentGrades.dkScore || {};
+                      
+                      const gradeStatus = gradeStatuses[student.id];
+                      const status = gradeStatus?.gradeStatus || 'DRAFT';
+                      const isEditable = canEditGrade(student.id);
+                      const txLocked = isFieldLocked(student.id, 'txScore');
+                      const dkLocked = isFieldLocked(student.id, 'dkScore');
                       
                       return (
                         <tr key={student.id} style={{ 
@@ -947,6 +1136,23 @@ const TeacherGradeEntry = () => {
                             {student.params?.fullName}
                           </td>
                           
+                          {/* Status Badge */}
+                          <td style={{ padding: '8px', border: '1px solid #dee2e6', textAlign: 'center' }}>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '4px 8px',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: 'bold',
+                              backgroundColor: getStatusColor(status),
+                              color: 'white'
+                            }}>
+                              {getStatusText(status)}
+                            </span>
+                            {txLocked && <span style={{ marginLeft: '5px', fontSize: '12px' }} title="TX đã khóa">🔒</span>}
+                            {dkLocked && <span style={{ marginLeft: '2px', fontSize: '12px' }} title="ĐK đã khóa">🔒</span>}
+                          </td>
+                          
                           {/* TX Inputs */}
                           {Array.from({ length: gradeConfig.txColumns }, (_, i) => {
                             const key = `tx${i + 1}`;
@@ -959,12 +1165,14 @@ const TeacherGradeEntry = () => {
                                   step="0.1"
                                   value={txScore[key] || ''}
                                   onChange={(e) => handleGradeChange(student.id, 'txScore', e.target.value, key)}
+                                  disabled={!isEditable || txLocked}
                                   style={{
-                                    width: '100%',
                                     padding: '6px',
                                     border: '1px solid #ced4da',
                                     borderRadius: '3px',
-                                    fontSize: '13px'
+                                    fontSize: '13px',
+                                    backgroundColor: (!isEditable || txLocked) ? '#e9ecef' : 'white',
+                                    cursor: (!isEditable || txLocked) ? 'not-allowed' : 'text'
                                   }}
                                   placeholder="0-10"
                                 />
@@ -984,12 +1192,14 @@ const TeacherGradeEntry = () => {
                                   step="0.1"
                                   value={dkScore[key] || ''}
                                   onChange={(e) => handleGradeChange(student.id, 'dkScore', e.target.value, key)}
+                                  disabled={!isEditable || dkLocked}
                                   style={{
-                                    width: '100%',
                                     padding: '6px',
                                     border: '1px solid #ced4da',
                                     borderRadius: '3px',
-                                    fontSize: '13px'
+                                    fontSize: '13px',
+                                    backgroundColor: (!isEditable || dkLocked) ? '#e9ecef' : 'white',
+                                    cursor: (!isEditable || dkLocked) ? 'not-allowed' : 'text'
                                   }}
                                   placeholder="0-10"
                                 />
@@ -1003,7 +1213,7 @@ const TeacherGradeEntry = () => {
                             border: '1px solid #dee2e6',
                             textAlign: 'center',
                             fontWeight: 'bold',
-                            backgroundColor: '#e8f5e9'
+                            // backgroundColor: '#e8f5e9'
                           }}>
                             {studentGrades.tbktScore || '-'}
                           </td>
@@ -1015,7 +1225,6 @@ const TeacherGradeEntry = () => {
                               value={studentGrades.ghiChu || ''}
                               onChange={(e) => handleGradeChange(student.id, 'ghiChu', e.target.value)}
                               style={{
-                                width: '100%',
                                 padding: '6px',
                                 border: '1px solid #ced4da',
                                 borderRadius: '3px',
@@ -1031,8 +1240,8 @@ const TeacherGradeEntry = () => {
                 </table>
               </div>
 
-              {/* Save Button */}
-              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+              {/* Action Buttons */}
+              <div style={{ marginTop: '20px', textAlign: 'center', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button
                   onClick={saveGrades}
                   disabled={loading}
@@ -1050,6 +1259,56 @@ const TeacherGradeEntry = () => {
                 >
                   {loading ? '⏳ Đang lưu...' : '💾 Lưu điểm'}
                 </button>
+                
+                <button
+                  onClick={() => {
+                    // Get all students with DRAFT status and gradeId
+                    const draftStudents = students
+                      .filter(student => {
+                        const status = gradeStatuses[student.id];
+                        // Must have gradeId (grade was saved) and status is DRAFT
+                        return status && status.gradeId && (!status.gradeStatus || status.gradeStatus === 'DRAFT');
+                      })
+                      .map(s => s.id);
+                    
+                    if (draftStudents.length === 0) {
+                      alert('Không có điểm nào ở trạng thái Bản nháp để nộp duyệt.\n\n⚠️ Lưu ý: Vui lòng LƯU ĐIỂM trước khi nộp duyệt!\n\nCác điểm mới nhập phải được lưu vào hệ thống trước khi có thể nộp duyệt.');
+                      return;
+                    }
+                    
+                    if (confirm(`Bạn có chắc muốn nộp ${draftStudents.length} điểm để admin duyệt?\n\nSau khi nộp, bạn sẽ không thể chỉnh sửa cho đến khi admin duyệt hoặc từ chối.`)) {
+                      submitForReview(draftStudents);
+                    }
+                  }}
+                  disabled={submitting || loading}
+                  style={{
+                    padding: '12px 40px',
+                    backgroundColor: (submitting || loading) ? '#6c757d' : '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    cursor: (submitting || loading) ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  {submitting ? '⏳ Đang nộp...' : '📤 Nộp điểm để duyệt'}
+                </button>
+              </div>
+              
+              {/* Status Info */}
+              <div style={{
+                marginTop: '15px',
+                padding: '10px',
+                backgroundColor: '#fff3cd',
+                border: '1px solid #ffc107',
+                borderRadius: '5px',
+                fontSize: '13px',
+                textAlign: 'center'
+              }}>
+                <strong>ℹ️ Lưu ý:</strong> Bạn chỉ có thể chỉnh sửa điểm ở trạng thái <strong>Bản nháp</strong>. 
+                Sau khi nộp duyệt, admin sẽ kiểm tra và duyệt điểm của bạn.
               </div>
 
               {/* Thông tin hướng dẫn */}
@@ -1068,6 +1327,35 @@ const TeacherGradeEntry = () => {
                   <li>TBKT sẽ được tính tự động: <strong>TX × 40% + ĐK × 60%</strong></li>
                   <li>Sử dụng nút <strong>+</strong> / <strong>-</strong> để thêm/bớt cột điểm TX và ĐK</li>
                   <li>Nhấn <strong>💾 Lưu điểm</strong> để lưu thay đổi</li>
+                  <li>Sau khi lưu, nhấn <strong>📤 Nộp điểm để duyệt</strong> để gửi cho admin kiểm tra</li>
+                  <li>Trạng thái điểm:
+                    <ul style={{ marginTop: '5px' }}>
+                      <li><span style={{ 
+                        padding: '2px 6px', 
+                        borderRadius: '8px', 
+                        backgroundColor: '#6c757d', 
+                        color: 'white', 
+                        fontSize: '11px',
+                        fontWeight: 'bold'
+                      }}>Bản nháp</span> - Bạn có thể chỉnh sửa</li>
+                      <li><span style={{ 
+                        padding: '2px 6px', 
+                        borderRadius: '8px', 
+                        backgroundColor: '#ffc107', 
+                        color: 'white', 
+                        fontSize: '11px',
+                        fontWeight: 'bold'
+                      }}>Chờ duyệt</span> - Admin đang kiểm tra</li>
+                      <li><span style={{ 
+                        padding: '2px 6px', 
+                        borderRadius: '8px', 
+                        backgroundColor: '#17a2b8', 
+                        color: 'white', 
+                        fontSize: '11px',
+                        fontWeight: 'bold'
+                      }}>Đã duyệt TX/ĐK</span> - Điểm đã được duyệt, đã khóa 🔒</li>
+                    </ul>
+                  </li>
                 </ul>
               </div>
             </>

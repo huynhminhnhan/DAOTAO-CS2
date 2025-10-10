@@ -1,5 +1,6 @@
 import express from 'express';
 import AdminApiController from '../controllers/AdminApiController.js';
+import gradeStateRoutes from './grade-state.routes.js';
 const router = express.Router();
 
 /**
@@ -260,5 +261,8 @@ router.get('/admin-api/teacher-permissions/my-classes/:cohortId', async (req, re
     });
   }
 });
+
+// Mount grade state management routes
+router.use('/grade/state', gradeStateRoutes);
 
 export default router;
