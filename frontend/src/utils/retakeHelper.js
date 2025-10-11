@@ -12,10 +12,24 @@ export const RETAKE_RULES = {
   },
   RETAKE_EXAM: {
     condition: (tbktScore, finalScore, tbmhScore) => {
-      return (
-        (tbktScore >= 5 && finalScore !== null && finalScore < 5) ||
-        (tbktScore >= 5 && tbmhScore !== null && tbmhScore < 5)
-      );
+      // Chỉ hiển thị thi lại khi:
+      // 1. TBKT ≥ 5 (đạt điều kiện thi)
+      // 2. ĐÃ CÓ điểm thi (finalScore !== null và !== undefined và !== '')
+      // 3. Điểm thi < 5 HOẶC TBMH < 5 (không đạt)
+      if (tbktScore === null || tbktScore === undefined || tbktScore < 5) {
+        return false; // TBKT < 5 → Học lại, không phải thi lại
+      }
+      
+      // Kiểm tra chưa có điểm thi (null, undefined, empty string, hoặc 0)
+      if (finalScore === null || finalScore === undefined || finalScore === '' || finalScore === 0) {
+        return false; // Chưa có điểm thi → Không hiển thị gì
+      }
+      
+      // Đã có điểm thi → Kiểm tra kết quả
+      const finalScoreNum = Number(finalScore);
+      const tbmhScoreNum = tbmhScore !== null && tbmhScore !== undefined && tbmhScore !== '' ? Number(tbmhScore) : null;
+      
+      return finalScoreNum < 5 || (tbmhScoreNum !== null && tbmhScoreNum < 5);
     },
     description: 'TBKT ≥ 5 nhưng điểm thi < 5 hoặc TBMH < 5 → Thi lại',
     action: 'Giữ nguyên TX, DK, TBKT - chỉ thi lại cuối kỳ',
@@ -29,7 +43,24 @@ export const RETAKE_RULES = {
 export const analyzeGradeStatus = (gradeData) => {
   const { tbktScore, finalScore, tbmhScore, attemptNumber = 1 } = gradeData;
   
-  // Rule 1: TBKT < 5 → Học lại
+  // Debug log
+  console.log('[analyzeGradeStatus] Input:', {
+    tbktScore,
+    tbktScoreType: typeof tbktScore,
+    finalScore,
+    finalScoreType: typeof finalScore,
+    tbmhScore,
+    tbmhScoreType: typeof tbmhScore,
+    checks: {
+      isFinalScoreNull: finalScore === null,
+      isFinalScoreUndefined: finalScore === undefined,
+      isFinalScoreEmpty: finalScore === '',
+      isFinalScoreZero: finalScore === 0,
+      tbktCheck: tbktScore >= 5
+    }
+  });
+  
+  // Rule 1: TBKT < 5 → Học lại (Ưu tiên cao nhất)
   if (RETAKE_RULES.RETAKE_COURSE.condition(tbktScore)) {
     return {
       needsAction: true,
@@ -45,7 +76,21 @@ export const analyzeGradeStatus = (gradeData) => {
     };
   }
   
-  // Rule 2: Thi lại
+  // Rule 2: Đạt (Kiểm tra trước khi kiểm tra thi lại)
+  if (tbmhScore !== null && tbmhScore !== undefined && tbmhScore !== '' && Number(tbmhScore) >= 5) {
+    return {
+      needsAction: false,
+      actionType: 'PASS',
+      reason: `Đạt môn: TBMH = ${tbmhScore} ≥ 5.0`,
+      description: 'Sinh viên đã đạt môn học',
+      severity: 'NONE',
+      canTakeExam: true,
+      showRetakeButton: false,
+      isPassed: true
+    };
+  }
+  
+  // Rule 3: Thi lại (TBKT ≥ 5, đã có điểm thi, nhưng không đạt)
   if (RETAKE_RULES.RETAKE_EXAM.condition(tbktScore, finalScore, tbmhScore)) {
     return {
       needsAction: true,
@@ -61,21 +106,7 @@ export const analyzeGradeStatus = (gradeData) => {
     };
   }
   
-  // Rule 3: Đạt
-  if (tbmhScore >= 5) {
-    return {
-      needsAction: false,
-      actionType: 'PASS',
-      reason: `Đạt môn: TBMH = ${tbmhScore} ≥ 5.0`,
-      description: 'Sinh viên đã đạt môn học',
-      severity: 'NONE',
-      canTakeExam: true,
-      showRetakeButton: false,
-      isPassed: true
-    };
-  }
-  
-  // Rule 4: Chưa có đủ điểm
+  // Rule 4: Chưa có đủ điểm (TBKT ≥ 5 nhưng chưa nhập điểm thi)
   return {
     needsAction: false,
     actionType: 'PENDING',

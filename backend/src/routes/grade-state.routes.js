@@ -105,6 +105,85 @@ router.post('/approve-tx-dk', async (req, res) => {
 });
 
 /**
+ * POST /admin-api/grade/state/bulk-approve-tx-dk
+ * Admin bulk approves TX/ĐK scores (PENDING_REVIEW → APPROVED_TX_DK) for multiple students
+ * Body: { gradeIds: [1, 2, 3, ...], reason: 'Optional reason' }
+ */
+router.post('/bulk-approve-tx-dk', async (req, res) => {
+  try {
+    const { gradeIds, reason } = req.body;
+    const userId = req.session?.adminUser?.id;
+    const userRole = req.session?.adminUser?.role;
+
+    if (!userId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Chưa đăng nhập' 
+      });
+    }
+
+    if (userRole !== 'admin') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Chỉ admin mới có thể duyệt điểm' 
+      });
+    }
+
+    if (!gradeIds || !Array.isArray(gradeIds) || gradeIds.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Thiếu gradeIds hoặc gradeIds không hợp lệ' 
+      });
+    }
+
+    console.log(`📋 Admin ${userId} approving ${gradeIds.length} grades...`);
+
+    // Approve từng grade
+    const results = [];
+    const errors = [];
+
+    for (const gradeId of gradeIds) {
+      try {
+        const result = await GradeStateService.approveTxDk(gradeId, userId, reason);
+        results.push({
+          gradeId,
+          success: true,
+          data: result
+        });
+      } catch (error) {
+        console.error(`❌ Error approving grade ${gradeId}:`, error.message);
+        errors.push({
+          gradeId,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    const successCount = results.length;
+    const failCount = errors.length;
+
+    res.json({
+      success: true,
+      message: `Đã duyệt ${successCount}/${gradeIds.length} điểm thành công`,
+      data: {
+        successCount,
+        failCount,
+        successful: results,
+        failed: errors
+      }
+    });
+
+  } catch (error) {
+    console.error('Error bulk approving TX/DK scores:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Lỗi khi duyệt điểm TX/ĐK hàng loạt'
+    });
+  }
+});
+
+/**
  * POST /admin-api/grade/state/enter-final
  * Admin enters final score (APPROVED_TX_DK → FINAL_ENTERED)
  */
@@ -148,6 +227,129 @@ router.post('/enter-final', async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Lỗi khi nhập điểm thi'
+    });
+  }
+});
+
+/**
+ * POST /admin-api/grade/state/lock-final
+ * Admin locks final score (set finalLocked = true)
+ * After locking, students can register for retake exam
+ */
+router.post('/lock-final', async (req, res) => {
+  try {
+    const { gradeId, reason } = req.body;
+    const userId = req.session?.adminUser?.id;
+    const userRole = req.session?.adminUser?.role;
+
+    if (!userId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Chưa đăng nhập' 
+      });
+    }
+
+    if (userRole !== 'admin') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Chỉ admin mới có thể chốt điểm thi' 
+      });
+    }
+
+    if (!gradeId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Thiếu gradeId' 
+      });
+    }
+
+    const result = await GradeStateService.lockFinalScore(gradeId, userId, reason);
+
+    res.json({
+      success: true,
+      message: 'Chốt điểm thi thành công',
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Error locking final score:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Lỗi khi chốt điểm thi'
+    });
+  }
+});
+
+/**
+ * POST /admin-api/grade/state/bulk-lock-final
+ * Admin locks final scores for multiple students
+ */
+router.post('/bulk-lock-final', async (req, res) => {
+  try {
+    const { gradeIds, reason } = req.body;
+    const userId = req.session?.adminUser?.id;
+    const userRole = req.session?.adminUser?.role;
+
+    if (!userId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Chưa đăng nhập' 
+      });
+    }
+
+    if (userRole !== 'admin') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Chỉ admin mới có thể chốt điểm thi' 
+      });
+    }
+
+    if (!gradeIds || !Array.isArray(gradeIds) || gradeIds.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Thiếu danh sách gradeIds hoặc danh sách rỗng' 
+      });
+    }
+
+    // Process each grade
+    const results = [];
+    for (const gradeId of gradeIds) {
+      try {
+        const result = await GradeStateService.lockFinalScore(gradeId, userId, reason);
+        results.push({
+          gradeId,
+          success: true,
+          data: result
+        });
+      } catch (error) {
+        console.error(`Error locking final score for grade ${gradeId}:`, error);
+        results.push({
+          gradeId,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    res.json({
+      success: true,
+      message: `Chốt điểm thi: Thành công ${successCount}/${gradeIds.length}`,
+      results,
+      summary: {
+        total: gradeIds.length,
+        success: successCount,
+        failed: failCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Error bulk locking final scores:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Lỗi khi chốt điểm thi tất cả'
     });
   }
 });

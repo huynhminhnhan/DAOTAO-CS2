@@ -26,9 +26,18 @@ body * {
   text-transform: none !important;
 }
 
-/* Force font family for Vietnamese characters */
+/* Force font family for Vietnamese characters with fallback */
 html, body, * {
   font-family: 'Segoe UI', 'Arial Unicode MS', Arial, sans-serif !important;
+}
+
+/* Optimize Google Fonts loading to prevent slow network warnings */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap; /* Shows fallback immediately, swaps when loaded */
+  src: local('Roboto'), local('Roboto-Regular');
 }
 [data-css="sidebar-footer"], 
 [data-testid="sidebar-footer"] {
@@ -98,6 +107,13 @@ html, body, * {
 .flatpickr-admin-wrapper .flatpickr-input { flex: 1 1 auto; width: 100%; box-sizing: border-box; }
 .flatpickr-admin-wrapper .flatpickr-trigger { background: transparent; border: 1px solid rgba(0,0,0,0.06); padding: 6px 10px; border-radius: 6px; height: 38px; display: inline-flex; align-items: center; }
 .flatpickr-admin-wrapper .flatpickr-trigger:hover { background: rgba(76,81,191,0.04); }
+
+/* Prevent Google Fonts from loading - use system fonts only */
+@supports (font-variation-settings: normal) {
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
+  }
+}
 
 /* label styling inside the component to match AdminJS field labels */
 .flatpickr-label {

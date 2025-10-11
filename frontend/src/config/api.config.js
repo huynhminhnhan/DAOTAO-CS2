@@ -32,6 +32,7 @@ export const API_ENDPOINTS = {
       SUBMIT: `${API_BASE_URL}/grade/state/submit`,
       BULK_SUBMIT: `${API_BASE_URL}/grade/state/bulk-submit`,
       APPROVE_TX_DK: `${API_BASE_URL}/grade/state/approve-tx-dk`,
+      BULK_APPROVE_TX_DK: `${API_BASE_URL}/grade/state/bulk-approve-tx-dk`, // ✅ NEW: Bulk approve
       ENTER_FINAL: `${API_BASE_URL}/grade/state/enter-final`,
       FINALIZE: `${API_BASE_URL}/grade/state/finalize`,
       REJECT: `${API_BASE_URL}/grade/state/reject`,

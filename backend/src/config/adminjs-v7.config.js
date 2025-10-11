@@ -91,9 +91,14 @@ export const createAdminJSConfig = () => {
     babelConfig: '../../.babelrc'
   };
 
+  // Optimize bundle - mark emotion as external to prevent duplicate loading
+  config.env = {
+    NODE_ENV: process.env.NODE_ENV || 'development'
+  };
+
   config.branding =  {
     companyName: 'TRƯỜNG CĐCSND II',
-    logo: "/public/assets/logo.jpeg", 
+    logo: "/assets/logo.jpeg", 
     theme: {
       colors: {
         primary100: '#006A4E',

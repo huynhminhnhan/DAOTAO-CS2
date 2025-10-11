@@ -15,11 +15,12 @@ const securityConfig = {
   helmet: {
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"],
+        defaultSrc: ["'self'", "*.ngrok-free.app", "*.ngrok.io"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        imgSrc: ["'self'", "data:", "https:"]
+        imgSrc: ["'self'", "data:", "https:", "*.ngrok-free.app", "*.ngrok.io"],
+        connectSrc: ["'self'", "*.ngrok-free.app", "*.ngrok.io"]
       }
     }
   },
@@ -46,6 +47,19 @@ const securityConfig = {
  */
 const createExpressApp = () => {
   const app = express();
+  
+  // Trust proxy - Required for ngrok, Railway, Heroku, etc.
+  // This allows Express to trust X-Forwarded-* headers from reverse proxies
+  app.set('trust proxy', 1);
+  
+  // Log requests when using ngrok (helpful for debugging mobile access)
+  app.use((req, res, next) => {
+    const isNgrok = req.get('host')?.includes('ngrok');
+    if (isNgrok) {
+      console.log(`[NGROK] ${req.method} ${req.path} - UA: ${req.get('user-agent')?.substring(0, 50)}`);
+    }
+    next();
+  });
   
   // Security middleware
   app.use(helmet(securityConfig.helmet));

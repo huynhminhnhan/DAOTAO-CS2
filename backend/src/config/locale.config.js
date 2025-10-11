@@ -7,6 +7,10 @@ export const localeConfig = {
   language: 'vi',
   availableLanguages: ['vi'],
   localeDetection: false,
+  // Tắt cảnh báo missing translation keys trong console
+  debug: false,
+  saveMissing: false,
+  missingKeyHandler: false,
   translations: {
     vi: {
       actions: {

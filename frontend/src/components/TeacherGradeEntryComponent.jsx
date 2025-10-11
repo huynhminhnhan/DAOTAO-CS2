@@ -158,7 +158,6 @@ const TeacherGradeEntry = () => {
         const data = await response.json();
         if (data.success && data.user) {
           setCurrentUser(data.user);
-          console.log('✅ Current user loaded:', data.user);
         }
       } catch (error) {
         console.error('Error loading current user:', error);
@@ -171,14 +170,14 @@ const TeacherGradeEntry = () => {
   useEffect(() => {
     const loadTeacherCohorts = async () => {
       try {
-        console.log('Loading teacher cohorts...');
+      
         const response = await fetch(API_ENDPOINTS.TEACHER_PERMISSIONS.MY_COHORTS, { 
           credentials: 'include' 
         });
         const data = await response.json();
         
         if (data.success) {
-          console.log('✅ Teacher cohorts loaded:', data.data.length);
+         
           setCohorts(data.data);
         } else {
           console.error('❌ Failed to load cohorts:', data.message);
@@ -204,7 +203,7 @@ const TeacherGradeEntry = () => {
           const data = await response.json();
           
           if (data.success) {
-            console.log('✅ Teacher classes loaded:', data.data.length);
+            // console.log('✅ Teacher classes loaded:', data.data.length);
             setClasses(data.data);
           } else {
             console.error('❌ Failed to load classes:', data.message);
@@ -300,13 +299,11 @@ const TeacherGradeEntry = () => {
           if (!classInfo) {
             throw new Error('Class information not found');
           }
-
+         
           const params = {
             cohortId: parsedCohortId,
             classId: parsedClassId,
             subjectId: parsedSubjectId,
-            semester: classInfo.semester || 'HK1',
-            academicYear: classInfo.academicYear || '2024-25'
           };
 
           const response = await fetch(getUrlWithParams(API_ENDPOINTS.GRADE.ENROLLED_STUDENTS, params), {
@@ -324,9 +321,31 @@ const TeacherGradeEntry = () => {
           const data = await response.json();
 
           if (data.success) {
-            console.log('✅ Loaded enrolled students:', data.summary);
+            console.log('📊 API Response - Enrolled Students:', data.data);
             
-            const formattedStudents = data.data.map(student => ({
+            // Debug: Check first student's grade status from API
+            if (data.data.length > 0) {
+              console.log('🔍 First student raw data:', {
+                gradeStatus: data.data[0].gradeStatus,
+                lockStatus: data.data[0].lockStatus,
+                txLocked: data.data[0].txLocked,
+                dkLocked: data.data[0].dkLocked,
+                finalLocked: data.data[0].finalLocked
+              });
+            }
+           
+            const formattedStudents = data.data.map(student => {
+              // Parse lock status from API response
+              // API might return flat fields (txLocked, dkLocked) or nested lockStatus object
+              const lockStatus = student.lockStatus || {
+                txLocked: student.txLocked === true || student.txLocked === 1,
+                dkLocked: student.dkLocked === true || student.dkLocked === 1,
+                finalLocked: student.finalLocked === true || student.finalLocked === 1
+              };
+              
+            
+              
+              return {
               id: student.studentId,
               enrollmentId: student.enrollmentId,
               params: {
@@ -349,13 +368,14 @@ const TeacherGradeEntry = () => {
                 isPassed: student.isPassed,
                 notes: student.notes || '',
                 lastUpdated: student.lastUpdated,
-                // State management fields
-                gradeStatus: student.gradeStatus || 'DRAFT',
-                lockStatus: student.lockStatus || { txLocked: false, dkLocked: false, finalLocked: false },
+                // State management fields - use parsed values, NO fallback to DRAFT
+                gradeStatus: student.gradeStatus, // Keep exact value from API
+                lockStatus: lockStatus, // Use parsed lockStatus from above
                 submittedForReviewAt: student.submittedForReviewAt,
                 approvedAt: student.approvedAt
               }
-            }));
+              };
+            });
 
             setStudents(formattedStudents);
             
@@ -392,7 +412,6 @@ const TeacherGradeEntry = () => {
 
   const handleCohortChange = (e) => {
     const cohortId = e.target.value;
-    console.log('🔍 Cohort selected:', { cohortId, type: typeof cohortId });
     
     if (cohortId && isNaN(parseInt(cohortId))) {
       console.error('❌ Invalid cohort ID:', cohortId);
@@ -428,7 +447,6 @@ const TeacherGradeEntry = () => {
 
   const handleSubjectChange = (e) => {
     const subjectId = e.target.value;
-    console.log('🔍 Subject selected:', { subjectId, type: typeof subjectId });
     
     setSelectedSubject(subjectId);
     setError('');
@@ -1267,49 +1285,76 @@ const TeacherGradeEntry = () => {
               </div>
 
               {/* Action Buttons */}
-              <div style={{ marginTop: '20px', textAlign: 'center', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button
-                  onClick={saveGrades}
-                  disabled={loading}
-                  style={{
-                    padding: '12px 40px',
-                    backgroundColor: loading ? '#6c757d' : '#28a745',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  {loading ? '⏳ Đang lưu...' : '💾 Lưu điểm'}
-                </button>
+              {(() => {
+                // Check if there are any students with DRAFT or editable status
+                const hasEditableGrades = students.some(student => {
+                  const status = gradeStatuses[student.id];
+                  // Consider editable if: no status yet, or status is DRAFT
+                  return !status || !status.gradeStatus || status.gradeStatus === 'DRAFT';
+                });
                 
-                <button
-                  onClick={() => {
-                    // Get all students with DRAFT status and gradeId
-                    const draftStudents = students
-                      .filter(student => {
-                        const status = gradeStatuses[student.id];
-                        // Must have gradeId (grade was saved) and status is DRAFT
-                        return status && status.gradeId && (!status.gradeStatus || status.gradeStatus === 'DRAFT');
-                      })
-                      .map(s => s.id);
+                // If no editable grades, don't show action buttons
+                if (!hasEditableGrades) {
+                  return (
+                    <div style={{
+                      marginTop: '20px',
+                      padding: '15px',
+                      backgroundColor: '#d1ecf1',
+                      border: '1px solid #bee5eb',
+                      borderRadius: '5px',
+                      textAlign: 'center',
+                      fontSize: '14px',
+                      color: '#0c5460'
+                    }}>
+                      <strong>ℹ️ Thông báo:</strong> Tất cả điểm đã được nộp duyệt. Bạn không thể chỉnh sửa .
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div style={{ marginTop: '20px', textAlign: 'center', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={saveGrades}
+                      disabled={loading}
+                      style={{
+                        padding: '12px 40px',
+                        backgroundColor: loading ? '#6c757d' : '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }}
+                    >
+                      {loading ? '⏳ Đang lưu...' : '💾 Lưu điểm'}
+                    </button>
                     
-                    if (draftStudents.length === 0) {
-                      alert('Không có điểm nào ở trạng thái Bản nháp để nộp duyệt.\n\n⚠️ Lưu ý: Vui lòng LƯU ĐIỂM trước khi nộp duyệt!\n\nCác điểm mới nhập phải được lưu vào hệ thống trước khi có thể nộp duyệt.');
-                      return;
-                    }
-                    
-                    if (confirm(`Bạn có chắc muốn nộp ${draftStudents.length} điểm để admin duyệt?\n\nSau khi nộp, bạn sẽ không thể chỉnh sửa cho đến khi admin duyệt hoặc từ chối.`)) {
-                      submitForReview(draftStudents);
-                    }
-                  }}
-                  disabled={submitting || loading}
-                  style={{
-                    padding: '12px 40px',
-                    backgroundColor: (submitting || loading) ? '#6c757d' : '#007bff',
+                    <button
+                      onClick={() => {
+                        // Get all students with DRAFT status and gradeId
+                        const draftStudents = students
+                          .filter(student => {
+                            const status = gradeStatuses[student.id];
+                            // Must have gradeId (grade was saved) and status is DRAFT
+                            return status && status.gradeId && (!status.gradeStatus || status.gradeStatus === 'DRAFT');
+                          })
+                          .map(s => s.id);
+                        
+                        if (draftStudents.length === 0) {
+                          alert('Không có điểm nào ở trạng thái Bản nháp để nộp duyệt.\n\n⚠️ Lưu ý: Vui lòng LƯU ĐIỂM trước khi nộp duyệt!\n\nCác điểm mới nhập phải được lưu vào hệ thống trước khi có thể nộp duyệt.');
+                          return;
+                        }
+                        
+                        if (confirm(`Bạn có chắc muốn nộp ${draftStudents.length} điểm để admin duyệt?\n\nSau khi nộp, bạn sẽ không thể chỉnh sửa cho đến khi admin duyệt hoặc từ chối.`)) {
+                          submitForReview(draftStudents);
+                        }
+                      }}
+                      disabled={submitting || loading}
+                      style={{
+                        padding: '12px 40px',
+                        backgroundColor: (submitting || loading) ? '#6c757d' : '#007bff',
                     color: 'white',
                     border: 'none',
                     borderRadius: '5px',
@@ -1321,7 +1366,9 @@ const TeacherGradeEntry = () => {
                 >
                   {submitting ? '⏳ Đang nộp...' : '📤 Nộp điểm để duyệt'}
                 </button>
-              </div>
+                  </div>
+                );
+              })()}
               
               {/* Status Info */}
               <div style={{

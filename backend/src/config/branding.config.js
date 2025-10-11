@@ -17,6 +17,8 @@ export const brandingConfig = {
       primary60: '#5b4e75',
       primary40: '#4a3f5f',
       primary20: '#392f49',
-    }
+    },
+    // Use system fonts instead of Google Fonts to prevent slow network warnings
+    font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif'
   }
 };

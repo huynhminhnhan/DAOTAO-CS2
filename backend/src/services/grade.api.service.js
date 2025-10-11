@@ -40,7 +40,31 @@ const GradeApiService = {
         letterGrade: existingGrade?.letterGrade || '',
         isPassed: existingGrade?.isPassed || null,
         notes: existingGrade?.notes || '',
-        lastUpdated: existingGrade?.updatedAt || null
+        lastUpdated: existingGrade?.updatedAt || null,
+        // State management fields
+        gradeStatus: existingGrade?.gradeStatus || null,
+        // lockStatus - Sequelize auto-parses JSON, ensure it's always an object
+        lockStatus: (() => {
+          if (!existingGrade?.lockStatus) {
+            return { txLocked: false, dkLocked: false, finalLocked: false };
+          }
+          // If it's a string (shouldn't happen with Sequelize JSON type, but safety check)
+          if (typeof existingGrade.lockStatus === 'string') {
+            try {
+              return JSON.parse(existingGrade.lockStatus);
+            } catch (e) {
+              console.error('Failed to parse lockStatus:', existingGrade.lockStatus);
+              return { txLocked: false, dkLocked: false, finalLocked: false };
+            }
+          }
+          return existingGrade.lockStatus;
+        })(),
+        // Flat fields for easier frontend access (backward compatibility)
+        txLocked: existingGrade?.lockStatus?.txLocked || false,
+        dkLocked: existingGrade?.lockStatus?.dkLocked || false,
+        finalLocked: existingGrade?.lockStatus?.finalLocked || false,
+        submittedForReviewAt: existingGrade?.submittedForReviewAt || null,
+        approvedAt: existingGrade?.approvedAt || null
       };
     });
 

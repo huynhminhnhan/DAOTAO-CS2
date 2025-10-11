@@ -1,6 +1,9 @@
 import express from 'express';
 import AdminApiController from '../controllers/AdminApiController.js';
 import authRoutes from './auth.routes.js';
+import retakeManagementRoutes from './retake-management.routes.js';
+import gradeRoutes from './grade.routes.js';
+import gradeStateRoutes from './grade-state.routes.js';
 const router = express.Router();
 
 /**
@@ -9,6 +12,12 @@ const router = express.Router();
  * They should only be accessible when user is logged in to AdminJS
  */
 const requireAdminSession = (req, res, next) => {
+  // Whitelist static assets and vendor files
+  const publicPaths = ['/vendor/', '/public/', '/favicon.ico', '/assets/'];
+  if (publicPaths.some(path => req.path.startsWith(path))) {
+    return next();
+  }
+  
   // Check if AdminJS session exists
   if (!req.session || !req.session.adminUser) {
     console.warn(`[SECURITY] Unauthorized admin-api access attempt: ${req.method} ${req.path} from ${req.ip}`);
@@ -57,5 +66,14 @@ router.delete('/admin-api/teacher-permissions/:id', AdminApiController.deleteTea
 
 // Mount auth sub-routes
 router.use('/admin-api/auth', authRoutes);
+
+// Mount grade management routes
+router.use('/admin-api/grade', gradeRoutes);
+
+// Mount grade state management routes
+router.use('/admin-api/grade/state', gradeStateRoutes);
+
+// Mount retake management routes
+router.use('/api/retake-management', retakeManagementRoutes);
 
 export default router;

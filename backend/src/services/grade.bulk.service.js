@@ -1,6 +1,7 @@
 import GradeRepository from '../repositories/grade.repository.js';
 import GradeService from './GradeService.js';
 import { sequelize } from '../database/index.js';
+import { GradeStateTransition } from '../database/index.js';
 
 const GradeBulkService = {
     async saveBulk({ grades, cohortId, classId, subjectId }, session, reqMeta = {}) {
@@ -59,6 +60,26 @@ const GradeBulkService = {
 
                     if (!created) {
                         const oldSnapshot = grade.toJSON();
+                        const oldGradeStatus = grade.gradeStatus || 'DRAFT';
+                        
+                        // Determine new grade status based on what's being entered
+                        let newGradeStatus = oldGradeStatus;
+                        let statusReason = '';
+                        let hasStatusChange = false;
+                        
+                        // If finalScore is being entered and status is APPROVED_TX_DK → FINAL_ENTERED
+                        if (finalScore !== null && finalScore !== undefined && finalScore !== '') {
+                            if (grade.gradeStatus === 'APPROVED_TX_DK') {
+                                newGradeStatus = 'FINAL_ENTERED';
+                                statusReason = ' - Chuyển sang FINAL_ENTERED do nhập điểm thi';
+                                hasStatusChange = true;
+                            } else if (!grade.gradeStatus || grade.gradeStatus === 'DRAFT') {
+                                newGradeStatus = 'FINAL_ENTERED';
+                                statusReason = ' - Chuyển sang FINAL_ENTERED do nhập điểm thi lần đầu';
+                                hasStatusChange = true;
+                            }
+                        }
+                        
                         await GradeRepository.updateGrade(grade, { 
                             txScore: txScore || null, // JSON format
                             dkScore: dkScore || null, // JSON format
@@ -66,12 +87,51 @@ const GradeBulkService = {
                             tbktScore, 
                             tbmhScore, 
                             isRetake: isRetake || false, 
-                            notes: notes || null, 
+                            notes: notes || null,
+                            gradeStatus: newGradeStatus,
                             updatedAt: new Date() 
                         }, txOptions);
-                        await GradeService.createGradeHistory(grade.id, session?.adminUser?.id, 'update', null, oldSnapshot, grade.toJSON(), { ipAddress: reqMeta.ipAddress, userAgent: reqMeta.userAgent, changedByRole: session?.adminUser?.role, reason: `${session?.adminUser?.username} đã cập nhật điểm`, transaction: t });
+                        
+                        // ✅ Create GradeStateTransition if status changed
+                        if (hasStatusChange && oldGradeStatus !== newGradeStatus) {
+                            await GradeStateTransition.create({
+                                gradeId: grade.id,
+                                fromState: oldGradeStatus,
+                                toState: newGradeStatus,
+                                triggeredBy: session?.adminUser?.id,
+                                reason: `Admin nhập điểm thi${statusReason}`
+                            }, txOptions);
+                        }
+                        
+                        await GradeService.createGradeHistory(grade.id, session?.adminUser?.id, 'update', null, oldSnapshot, grade.toJSON(), { ipAddress: reqMeta.ipAddress, userAgent: reqMeta.userAgent, changedByRole: session?.adminUser?.role, reason: `${session?.adminUser?.username} đã cập nhật điểm${statusReason}`, transaction: t });
                     } else {
-                        await GradeService.createGradeHistory(grade.id, session?.adminUser?.id, 'create', null, null, grade.toJSON(), { ipAddress: reqMeta.ipAddress, userAgent: reqMeta.userAgent, changedByRole: session?.adminUser?.role, reason: `${session?.adminUser?.username} đã tạo điểm mới`, transaction: t });
+                        // For new grades, set FINAL_ENTERED if finalScore is provided
+                        let initialStatus = 'DRAFT';
+                        let hasStatusChange = false;
+                        
+                        if (finalScore !== null && finalScore !== undefined && finalScore !== '') {
+                            initialStatus = 'FINAL_ENTERED';
+                            hasStatusChange = true;
+                        }
+                        
+                        if (grade.gradeStatus !== initialStatus) {
+                            await GradeRepository.updateGrade(grade, {
+                                gradeStatus: initialStatus
+                            }, txOptions);
+                        }
+                        
+                        // ✅ Create GradeStateTransition for newly created grades with FINAL_ENTERED
+                        if (hasStatusChange && initialStatus === 'FINAL_ENTERED') {
+                            await GradeStateTransition.create({
+                                gradeId: grade.id,
+                                fromState: 'DRAFT',
+                                toState: 'FINAL_ENTERED',
+                                triggeredBy: session?.adminUser?.id,
+                                reason: 'Admin tạo điểm mới với điểm thi'
+                            }, txOptions);
+                        }
+                        
+                        await GradeService.createGradeHistory(grade.id, session?.adminUser?.id, 'create', null, null, grade.toJSON(), { ipAddress: reqMeta.ipAddress, userAgent: reqMeta.userAgent, changedByRole: session?.adminUser?.role, reason: `${session?.adminUser?.username} đã tạo điểm mới${initialStatus === 'FINAL_ENTERED' ? ' (có điểm thi)' : ''}`, transaction: t });
                     }
 
                     results.push({ studentId, studentCode: student.studentCode, studentName: student.fullName, gradeAction: created ? 'created' : 'updated', gradeId: grade.id, enrollmentId: enrollment.enrollmentId, enrollmentStatus: enrollment.status, attempt: enrollment.attempt });

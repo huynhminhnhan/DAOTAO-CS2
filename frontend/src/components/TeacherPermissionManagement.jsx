@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Box, Button, Label, Text, Icon, Loader, MessageBox } from '@adminjs/design-system';
+import { Box, Button, Label, Text, Loader, MessageBox } from '@adminjs/design-system';
 import { ApiClient, useNotice } from 'adminjs';
 
 const TeacherPermissionManagement = () => {

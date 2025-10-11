@@ -81,6 +81,7 @@ const RetakeActionButton = ({ analysis, gradeId, studentId, subjectId, onRetakeC
 const RetakeManagementComponent = ({ 
   student, 
   gradeData, 
+  gradeStatus, // ✅ NEW: Thêm gradeStatus để check approval
   subjectId, 
   gradeConfig = { txColumns: 1, dkColumns: 1 }, // Thêm gradeConfig
   hasExistingGrade = false, // Flag kiểm tra đã có điểm trong DB
@@ -92,6 +93,13 @@ const RetakeManagementComponent = ({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [hasRetakeHistory, setHasRetakeHistory] = useState(false);
   const [checkingHistory, setCheckingHistory] = useState(false);
+  
+  // ✅ Check if TX/ĐK are approved
+  const isTxDkApproved = gradeStatus && (
+    gradeStatus.gradeStatus === 'APPROVED_TX_DK' || 
+    gradeStatus.gradeStatus === 'FINAL_ENTERED' || 
+    gradeStatus.gradeStatus === 'FINALIZED'
+  );
 
   // Kiểm tra xem sinh viên có lịch sử thi lại/học lại không
   useEffect(() => {
@@ -125,6 +133,24 @@ const RetakeManagementComponent = ({
     tbmhScore: gradeData.tbmhScore,
     attemptNumber: gradeData.attemptNumber || 1
   });
+
+  // Debug log
+  useEffect(() => {
+    if (gradeData.gradeId) {
+      console.log(`[RetakeManagement] Student ${student.studentCode}:`, {
+        tbktScore: gradeData.tbktScore,
+        finalScore: gradeData.finalScore,
+        tbmhScore: gradeData.tbmhScore,
+        hasExistingGrade,
+        analysis: {
+          needsAction: analysis.needsAction,
+          actionType: analysis.actionType,
+          isPassed: analysis.isPassed,
+          isPending: analysis.isPending
+        }
+      });
+    }
+  }, [gradeData.tbmhScore, gradeData.tbktScore, gradeData.finalScore, hasExistingGrade]);
 
   // Xử lý mở modal tương ứng
   const handleOpenModal = () => {
@@ -163,8 +189,23 @@ const RetakeManagementComponent = ({
       {/* Status Badge - Chỉ hiển thị khi đã có điểm */}
       {hasExistingGrade && <RetakeStatusBadge analysis={analysis} />}
       
-      {/* Action Button - Mở Modal - Chỉ hiển thị khi đã có điểm */}
-      {hasExistingGrade && analysis.needsAction && (
+      {/* ✅ Thông báo nếu chưa duyệt TX/ĐK */}
+      {hasExistingGrade && analysis.needsAction && !isTxDkApproved && (
+        <div style={{
+          padding: '6px',
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffc107',
+          borderRadius: '4px',
+          fontSize: '11px',
+          color: '#856404',
+          marginTop: '4px'
+        }}>
+          🔒 Chưa duyệt TX/ĐK
+        </div>
+      )}
+      
+      {/* Action Button - Mở Modal - Chỉ hiển thị khi đã có điểm VÀ đã duyệt TX/ĐK */}
+      {hasExistingGrade && analysis.needsAction && isTxDkApproved && (
         <button
           onClick={handleOpenModal}
           style={{

@@ -6,7 +6,8 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "NODE_ENV=development nodemon app.js --watch src --ext js,jsx,json",
+    "dev": "NODE_ENV=development nodemon --exec 'rm -rf .adminjs && node' app.js --watch backend/src --watch frontend/src --ext js,jsx,json",
+    "dev:clean": "rm -rf .adminjs && npm run dev",
     "db:migrate": "npx sequelize-cli db:migrate",
     "db:seed": "npx sequelize-cli db:seed:all"
   },

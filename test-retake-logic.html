@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Retake Logic</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-case {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-case h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .pass { background: #d4edda; color: #155724; }
+        .fail { background: #f8d7da; color: #721c24; }
+        .pending { background: #d1ecf1; color: #0c5460; }
+        .retake-exam { background: #fff3cd; color: #856404; }
+        .retake-course { background: #f8d7da; color: #721c24; }
+        .details {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #007bff;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Logic Thi Lại / Học Lại</h1>
+    <div id="results"></div>
+
+    <script type="module">
+        // Giả lập logic từ retakeHelper.js
+        const RETAKE_RULES = {
+            RETAKE_COURSE: {
+                condition: (tbktScore) => tbktScore !== null && tbktScore !== undefined && tbktScore < 5
+            },
+            RETAKE_EXAM: {
+                condition: (tbktScore, finalScore, tbmhScore) => {
+                    if (tbktScore === null || tbktScore === undefined || tbktScore < 5) {
+                        return false;
+                    }
+                    
+                    if (finalScore === null || finalScore === undefined || finalScore === '' || finalScore === 0) {
+                        return false;
+                    }
+                    
+                    const finalScoreNum = Number(finalScore);
+                    const tbmhScoreNum = tbmhScore !== null && tbmhScore !== undefined && tbmhScore !== '' ? Number(tbmhScore) : null;
+                    
+                    return finalScoreNum < 5 || (tbmhScoreNum !== null && tbmhScoreNum < 5);
+                }
+            }
+        };
+
+        function analyzeGradeStatus(gradeData) {
+            const { tbktScore, finalScore, tbmhScore } = gradeData;
+            
+            // Rule 1: TBKT < 5 → Học lại
+            if (RETAKE_RULES.RETAKE_COURSE.condition(tbktScore)) {
+                return {
+                    needsAction: true,
+                    actionType: 'RETAKE_COURSE',
+                    reason: `TBKT = ${tbktScore} < 5.0`
+                };
+            }
+            
+            // Rule 2: Đạt
+            if (tbmhScore !== null && tbmhScore !== undefined && tbmhScore !== '' && Number(tbmhScore) >= 5) {
+                return {
+                    needsAction: false,
+                    actionType: 'PASS',
+                    reason: `Đạt môn: TBMH = ${tbmhScore} ≥ 5.0`,
+                    isPassed: true
+                };
+            }
+            
+            // Rule 3: Thi lại
+            if (RETAKE_RULES.RETAKE_EXAM.condition(tbktScore, finalScore, tbmhScore)) {
+                return {
+                    needsAction: true,
+                    actionType: 'RETAKE_EXAM',
+                    reason: finalScore < 5 ? `Điểm thi = ${finalScore} < 5.0` : `TBMH = ${tbmhScore} < 5.0`
+                };
+            }
+            
+            // Rule 4: Chưa có đủ điểm
+            return {
+                needsAction: false,
+                actionType: 'PENDING',
+                reason: 'Chưa có đủ điểm để đánh giá',
+                isPending: true
+            };
+        }
+
+        // Test cases
+        const testCases = [
+            {
+                name: 'Case 1: TBKT < 5',
+                data: { tbktScore: 3.0, finalScore: null, tbmhScore: null },
+                expected: 'RETAKE_COURSE'
+            },
+            {
+                name: 'Case 2: TBKT ≥ 5, chưa có điểm thi (null)',
+                data: { tbktScore: 6.0, finalScore: null, tbmhScore: null },
+                expected: 'PENDING'
+            },
+            {
+                name: 'Case 3: TBKT ≥ 5, chưa có điểm thi (undefined)',
+                data: { tbktScore: 6.0, finalScore: undefined, tbmhScore: undefined },
+                expected: 'PENDING'
+            },
+            {
+                name: 'Case 4: TBKT ≥ 5, chưa có điểm thi (empty string)',
+                data: { tbktScore: 6.0, finalScore: '', tbmhScore: '' },
+                expected: 'PENDING'
+            },
+            {
+                name: 'Case 5: TBKT ≥ 5, chưa có điểm thi (0)',
+                data: { tbktScore: 6.0, finalScore: 0, tbmhScore: 0 },
+                expected: 'PENDING'
+            },
+            {
+                name: 'Case 6: Đã đạt (TBMH ≥ 5)',
+                data: { tbktScore: 6.0, finalScore: 7.0, tbmhScore: 6.5 },
+                expected: 'PASS'
+            },
+            {
+                name: 'Case 7: Thi lại (điểm thi < 5)',
+                data: { tbktScore: 6.0, finalScore: 4.0, tbmhScore: 5.0 },
+                expected: 'RETAKE_EXAM'
+            },
+            {
+                name: 'Case 8: Thi lại (TBMH < 5)',
+                data: { tbktScore: 6.0, finalScore: 6.0, tbmhScore: 4.8 },
+                expected: 'RETAKE_EXAM'
+            },
+            {
+                name: 'Case 9: TBKT = 5 (edge case)',
+                data: { tbktScore: 5.0, finalScore: null, tbmhScore: null },
+                expected: 'PENDING'
+            },
+            {
+                name: 'Case 10: TBMH = 5 (edge case)',
+                data: { tbktScore: 6.0, finalScore: 6.0, tbmhScore: 5.0 },
+                expected: 'PASS'
+            }
+        ];
+
+        const resultsDiv = document.getElementById('results');
+        let passCount = 0;
+        let failCount = 0;
+
+        testCases.forEach((test, index) => {
+            const result = analyzeGradeStatus(test.data);
+            const isPassed = result.actionType === test.expected;
+            
+            if (isPassed) passCount++;
+            else failCount++;
+            
+            const testDiv = document.createElement('div');
+            testDiv.className = 'test-case';
+            testDiv.innerHTML = `
+                <h3>${test.name}</h3>
+                <div class="details">
+                    <strong>Input:</strong><br>
+                    TBKT = ${test.data.tbktScore} (${typeof test.data.tbktScore})<br>
+                    Final = ${test.data.finalScore} (${typeof test.data.finalScore})<br>
+                    TBMH = ${test.data.tbmhScore} (${typeof test.data.tbmhScore})
+                </div>
+                <div class="result ${result.actionType.toLowerCase()}">
+                    ${isPassed ? '✅' : '❌'} Result: ${result.actionType}<br>
+                    Expected: ${test.expected}<br>
+                    Reason: ${result.reason}
+                </div>
+            `;
+            resultsDiv.appendChild(testDiv);
+        });
+
+        // Summary
+        const summaryDiv = document.createElement('div');
+        summaryDiv.className = 'test-case';
+        summaryDiv.style.background = '#e9ecef';
+        summaryDiv.innerHTML = `
+            <h3>📊 Tổng kết</h3>
+            <div style="font-size: 18px;">
+                ✅ Passed: ${passCount}/${testCases.length}<br>
+                ❌ Failed: ${failCount}/${testCases.length}
+            </div>
+        `;
+        resultsDiv.insertBefore(summaryDiv, resultsDiv.firstChild);
+    </script>
+</body>
+</html>

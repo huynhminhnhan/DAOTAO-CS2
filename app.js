@@ -71,23 +71,48 @@ const startApp = async () => {
 
     await sessionStore.sync();
 
+    // Debug middleware - log static file requests
+    app.use((req, res, next) => {
+      if (req.path.includes('assets') || req.path.includes('.css') || req.path.includes('.jpeg') || req.path.includes('.jpg') || req.path.includes('.png')) {
+        console.log(`[STATIC] ${req.method} ${req.path}`);
+      }
+      next();
+    });
+
     // Serve static files for custom CSS from frontend/public
     const frontendPublicPath = path.join(process.cwd(), 'frontend', 'public');
-    app.use(express.static(frontendPublicPath));
-    app.use("/public", express.static(frontendPublicPath))
+    console.log(`📁 Serving static files from: ${frontendPublicPath}`);
+    
+    // Static file options with proper caching and mobile support
+    const staticOptions = {
+      maxAge: '1d', // Cache for 1 day
+      etag: true,
+      lastModified: true,
+      setHeaders: (res, path) => {
+        // Allow cross-origin for images (mobile/ngrok compatibility)
+        if (path.endsWith('.jpeg') || path.endsWith('.jpg') || path.endsWith('.png') || path.endsWith('.gif')) {
+          res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+        }
+      }
+    };
+    
+    app.use(express.static(frontendPublicPath, staticOptions));
+    app.use("/public", express.static(frontendPublicPath, staticOptions))
 
   // Serve only required vendor assets from node_modules under a safe /vendor prefix
   // This exposes only the flatpickr distribution files, not the entire node_modules.
-  const flatpickrDist = path.join(process.cwd(), 'backend', 'node_modules', 'flatpickr', 'dist');
+  const flatpickrDist = path.join(process.cwd(), 'node_modules', 'flatpickr', 'dist');
   app.use('/vendor/flatpickr', express.static(flatpickrDist));
 
     // Create AdminJS instance with modular configuration
     const adminJs = createAdminJSConfig();
     
-    // Skip bundling completely in development mode
-    process.env.ADMIN_JS_SKIP_BUNDLE = 'true';
-    
-    console.log('🔧 Development mode: Components will be served directly (no bundling)');
+    // Enable auto-bundling in development mode
+    // AdminJS will watch and rebuild components when they change
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔧 Development mode: Auto-bundling enabled for components');
+    }
 
     // AdminJS authentication
     const adminRouter = AdminJSExpress.buildAuthenticatedRouter(adminJs, {
@@ -114,7 +139,7 @@ const startApp = async () => {
 
           // Kiểm tra teacher permissions nếu là teacher
           if (user.role === 'teacher') {
-            const { TeacherPermission } = await import('./src/database/index.js');
+            const { TeacherPermission } = await import('./backend/src/database/index.js');
             
             // Kiểm tra xem teacher có ít nhất 1 permission còn valid không
             const activePermissions = await TeacherPermission.findAll({
@@ -189,6 +214,23 @@ const startApp = async () => {
 
     // Mount AdminJS FIRST
     app.use(adminJs.options.rootPath, adminRouter);
+
+    // Debug endpoint to test logo loading
+    app.get('/api/debug/logo', async (req, res) => {
+      const fs = await import('fs');
+      const logoPath = path.join(frontendPublicPath, 'assets', 'logo.jpeg');
+      res.json({
+        logoPath: logoPath,
+        exists: fs.existsSync(logoPath),
+        expectedUrls: [
+          '/assets/logo.jpeg',
+          '/public/assets/logo.jpeg'
+        ],
+        staticBasePath: frontendPublicPath,
+        host: req.get('host'),
+        protocol: req.protocol
+      });
+    });
 
     // NOW setup body parser and other middleware for API routes
     app.use(express.json({ limit: '10mb' }));

@@ -43,7 +43,24 @@ const GradeRepository = {
           as: 'grades', 
           where: { semester, academicYear }, 
           required: false, 
-          attributes: ['id','txScore','dkScore','finalScore','tbktScore','tbmhScore','letterGrade','isPassed','notes','createdAt','updatedAt'],
+          attributes: [
+            'id',
+            'txScore',
+            'dkScore',
+            'finalScore',
+            'tbktScore',
+            'tbmhScore',
+            'letterGrade',
+            'isPassed',
+            'notes',
+            // State management fields
+            'gradeStatus',
+            'lockStatus', // ✅ JSON field containing {txLocked, dkLocked, finalLocked}
+            'submittedForReviewAt',
+            'approvedAt',
+            'createdAt',
+            'updatedAt'
+          ],
           include: [
             {
               model: GradeRetake,

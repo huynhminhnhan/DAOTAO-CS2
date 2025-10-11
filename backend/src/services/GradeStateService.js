@@ -220,6 +220,143 @@ class GradeStateService {
   }
   
   /**
+   * Admin approves TX/ĐK scores (PENDING_REVIEW → APPROVED_TX_DK)
+   * Locks TX and ĐK fields, unlocks Final field
+   */
+  static async approveTxDk(gradeId, userId, reason = null) {
+    try {
+      const grade = await Grade.findByPk(gradeId);
+      if (!grade) {
+        throw new Error(`Grade ${gradeId} không tìm thấy`);
+      }
+
+      // Validate current status
+      if (grade.gradeStatus !== 'PENDING_REVIEW') {
+        throw new Error(
+          `Chỉ có thể duyệt điểm ở trạng thái PENDING_REVIEW. ` +
+          `Trạng thái hiện tại: ${grade.gradeStatus}`
+        );
+      }
+
+      // Save to history before changing
+      await this.saveToHistory(grade, userId, `Admin duyệt TX/ĐK`);
+
+      // Update status and lock status
+      grade.gradeStatus = 'APPROVED_TX_DK';
+      grade.lockStatus = {
+        txLocked: true,   // Lock TX
+        dkLocked: true,   // Lock ĐK
+        finalLocked: false // Keep Final unlocked for admin to enter
+      };
+      grade.approvedBy = userId;
+      grade.approvedAt = new Date();
+      grade.version = (grade.version || 1) + 1;
+      grade.lastEditedBy = userId;
+      grade.lastEditedAt = new Date();
+      
+      await grade.save();
+
+      // Log transition
+      await GradeStateTransition.create({
+        gradeId: grade.id,
+        fromState: 'PENDING_REVIEW',
+        toState: 'APPROVED_TX_DK',
+        triggeredBy: userId,
+        reason: reason || 'Admin duyệt điểm TX và ĐK'
+      });
+
+      console.log(`✅ Grade ${gradeId} approved TX/ĐK by user ${userId}`);
+
+      return grade;
+    } catch (error) {
+      console.error(`❌ Error approving TX/ĐK for grade ${gradeId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🔒 Chốt điểm thi - Lock finalScore
+   * Set finalLocked = true để cho phép sinh viên đăng ký thi lại
+   */
+  static async lockFinalScore(gradeId, userId, reason = null) {
+    try {
+      const grade = await Grade.findByPk(gradeId);
+      if (!grade) {
+        throw new Error(`Grade ${gradeId} không tìm thấy`);
+      }
+
+      // Validate: phải có điểm thi
+      if (!grade.finalScore || grade.finalScore === 0) {
+        throw new Error('Chưa có điểm thi để chốt!');
+      }
+
+      // Parse lockStatus
+      let lockStatus = grade.lockStatus;
+      if (typeof lockStatus === 'string') {
+        try {
+          lockStatus = JSON.parse(lockStatus);
+        } catch (e) {
+          lockStatus = { txLocked: true, dkLocked: true, finalLocked: false };
+        }
+      }
+      if (!lockStatus) {
+        lockStatus = { txLocked: true, dkLocked: true, finalLocked: false };
+      }
+
+      // Check if already locked
+      if (lockStatus.finalLocked === true) {
+        throw new Error('Điểm thi đã được chốt rồi!');
+      }
+
+      // Save to history before locking
+      await this.saveToHistory(grade, userId, `Admin chốt điểm thi (lock finalScore)`);
+
+      // Determine status transition
+      const oldStatus = grade.gradeStatus;
+      let newStatus = oldStatus;
+      
+      // If status is FINAL_ENTERED → transition to FINALIZED
+      if (oldStatus === 'FINAL_ENTERED') {
+        newStatus = 'FINALIZED';
+      }
+
+      // Lock final score
+      grade.lockStatus = {
+        txLocked: true,
+        dkLocked: true,
+        finalLocked: true // 🔒 Lock điểm thi
+      };
+      grade.gradeStatus = newStatus;
+      grade.version = (grade.version || 1) + 1;
+      grade.lastEditedBy = userId;
+      grade.lastEditedAt = new Date();
+      
+      if (newStatus === 'FINALIZED') {
+        grade.finalizedBy = userId;
+        grade.finalizedAt = new Date();
+      }
+      
+      await grade.save();
+
+      // Log transition
+      await GradeStateTransition.create({
+        gradeId: grade.id,
+        fromState: oldStatus,
+        toState: newStatus,
+        triggeredBy: userId,
+        reason: reason || `Admin chốt điểm thi${newStatus === 'FINALIZED' ? ' - Chuyển sang FINALIZED' : ''}`
+      });
+
+      console.log(`✅ Grade ${gradeId} final score locked by user ${userId}`);
+
+      return grade;
+    } catch (error) {
+      console.error(`❌ Error locking final score for grade ${gradeId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Chuyển trạng thái của một grade
    */
   static async transitionState(gradeId, toStatus, userId, reason = null) {
