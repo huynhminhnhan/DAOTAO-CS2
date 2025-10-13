@@ -11,18 +11,30 @@ import { Components } from './components.js';
  */
 export const pagesConfig = {
   // Teacher Grade Entry Page - ONLY TX and DK scores
-  'teacher-grade-entry': {
-    component: Components.TeacherGradeEntry,
-    icon: 'Edit',
-    handler: async (request, response, context) => {
-      // Check if user is teacher
-      const currentAdmin = context.currentAdmin;
-      if (!currentAdmin || currentAdmin.role !== 'teacher') {
-        return {
-          text: 'Access denied. This page is only for teachers.',
-        };
-      }
-      return {};
-    }
-  }
+  // 'teacher-grade-entry': {
+  //   component: Components.TeacherGradeEntry,
+  //   icon: 'Edit',
+  //   // ❌ KHÔNG đặt trong navigation để ẩn khỏi sidebar menu
+  //   // Menu sẽ được thêm động qua client-side script pages-rbac-hider.js
+  //   showInNavigation: false, // Thử property này
+  //   handler: async (request, response, context) => {
+  //     // Check if user is teacher
+  //     debugger;
+  //     console.log('🧑‍🏫 Teacher Grade Entry page accessed by:', context.currentAdmin);
+      
+  //     const currentAdmin = context.currentAdmin;
+  //     if (!currentAdmin || currentAdmin.role !== 'teacher') {
+  //       // Redirect admin về dashboard
+  //       if (currentAdmin && currentAdmin.role === 'admin') {
+  //         return {
+  //           redirectUrl: '/admin'
+  //         };
+  //       }
+  //       return {
+  //         text: 'Access denied. This page is only for teachers.',
+  //       };
+  //     }
+  //     return {};
+  //   }
+  // }
 };

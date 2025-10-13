@@ -20,7 +20,11 @@
     'Cai Dặt Chung' : 'Cài đặt chung',
     'View Transcript': 'Xem bảng điểm',
     'Grade History': 'Lịch sử điểm số',
-  '✅ Dang Học' : '✅ Đang học',
+    '✅ Dang Học' : '✅ Đang học',
+    'Teacher Permissions': 'Quản lý quyền người dùng',
+    'Teacher Grade Entry': 'Nhập điểm TX & ĐK',
+    'Nhập Diểm TX DK': 'Quản lý điểm TX & ĐK',
+    'Grade Entry' : 'Nhập điểm',
 
      
     // Resource names (English) 

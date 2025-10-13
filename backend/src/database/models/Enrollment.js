@@ -29,7 +29,7 @@ const Enrollment = sequelize.define('Enrollment', {
     field: 'class_id',
     comment: 'ID lớp học',
     references: {
-      model: 'Classes',
+      model: 'classes', // ✅ Sửa từ 'Classes' thành 'classes'
       key: 'id'
     }
   },
@@ -39,7 +39,7 @@ const Enrollment = sequelize.define('Enrollment', {
     field: 'subject_id',
     comment: 'ID môn học',
     references: {
-      model: 'Subjects',
+      model: 'subjects', // ✅ Sửa từ 'Subjects' thành 'subjects'
       key: 'id'
     }
   },

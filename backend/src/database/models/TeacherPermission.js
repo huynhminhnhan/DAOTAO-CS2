@@ -30,7 +30,7 @@ const TeacherPermission = sequelize.define('TeacherPermission', {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'Classes',
+      model: 'classes', // ✅ Sửa từ 'Classes' thành 'classes' để match với table name
       key: 'id'
     },
     comment: 'ID lớp (NULL = tất cả lớp)'
@@ -40,7 +40,7 @@ const TeacherPermission = sequelize.define('TeacherPermission', {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'Subjects',
+      model: 'subjects', // ✅ Sửa từ 'Subjects' thành 'subjects' để match với table name
       key: 'id'
     },
     comment: 'ID môn học (NULL = tất cả môn)'

@@ -100,6 +100,61 @@ const TeacherPermissionManagement = () => {
     }
   };
 
+  // ✅ Helper: Tính trạng thái thực tế dựa trên validTo
+  const getActualStatus = (permission) => {
+    const dbStatus = permission.params?.status || permission.status;
+    const validTo = permission.params?.validTo || permission.validTo;
+    
+    // Nếu đã bị revoke, giữ nguyên
+    if (dbStatus === 'revoked') {
+      return 'revoked';
+    }
+    
+    // Kiểm tra hết hạn
+    if (validTo) {
+      const validToDate = new Date(validTo);
+      const now = new Date();
+      
+      // So sánh chỉ ngày (bỏ giờ)
+      validToDate.setHours(0, 0, 0, 0);
+      now.setHours(0, 0, 0, 0);
+      
+      if (validToDate < now) {
+        return 'expired'; // Hết hạn
+      }
+    }
+    
+    return dbStatus; // active hoặc trạng thái khác
+  };
+
+  // ✅ Helper: Lấy màu cho status badge
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active':
+        return { background: '#d4edda', color: '#155724', icon: '✅' };
+      case 'expired':
+        return { background: '#fff3cd', color: '#856404', icon: '⏱️' };
+      case 'revoked':
+        return { background: '#f8d7da', color: '#721c24', icon: '🚫' };
+      default:
+        return { background: '#e2e3e5', color: '#383d41', icon: '❓' };
+    }
+  };
+
+  // ✅ Helper: Lấy text cho status
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'active':
+        return 'Đang hoạt động';
+      case 'expired':
+        return 'Hết hạn';
+      case 'revoked':
+        return 'Đã thu hồi';
+      default:
+        return status;
+    }
+  };
+
   // Load permissions của user đã chọn
   const loadUserPermissions = async (userId) => {
     if (!userId) return;
@@ -722,16 +777,22 @@ const TeacherPermissionManagement = () => {
                       {perm.params.validFrom} → {perm.params.validTo}
                     </td>
                     <td style={{ padding: '12px' }}>
-                      <span style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        background: perm.params.status === 'active' ? '#d4edda' : '#f8d7da',
-                        color: perm.params.status === 'active' ? '#155724' : '#721c24'
-                      }}>
-                        {perm.params.status === 'active' ? '✅ Active' : '❌ ' + perm.params.status}
-                      </span>
+                      {(() => {
+                        const actualStatus = getActualStatus(perm);
+                        const statusColor = getStatusColor(actualStatus);
+                        return (
+                          <span style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            background: statusColor.background,
+                            color: statusColor.color
+                          }}>
+                            {statusColor.icon} {getStatusText(actualStatus)}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>
                       <Button

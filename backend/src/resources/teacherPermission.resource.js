@@ -147,21 +147,13 @@ const teacherPermissionResource = {
 
     // Actions
     actions: {
-      // Custom action: Quản lý quyền (opens custom component)
-      managePermissions: {
-        actionType: 'resource',
-        icon: 'Key',
-        label: 'Gán quyền cho giảng viên',
-        component: Components.TeacherPermissionManagement,
-        handler: async (request, response, context) => {
-          return { record: {} };
-        },
-        isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin',
-      },
+     
 
-      // List action
+      // List action - Sử dụng custom component TeacherPermissionManagement
       list: {
+        component: Components.TeacherPermissionManagement,
         isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin',
+        showFilter: false, // ✅ Ẩn filter
       },
 
       // Show action
@@ -169,8 +161,10 @@ const teacherPermissionResource = {
         isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin',
       },
 
-      // New action
-      new: {
+      // New action - Ẩn button tạo mới
+      new:
+       {
+        isVisible: false, // ✅ Ẩn button "New"
         isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin',
         before: async (request, context) => {
           // Ghi nhận người tạo
@@ -221,33 +215,6 @@ const teacherPermissionResource = {
           return response;
         }
       },
-
-      // Custom Action: Check Expired Permissions
-      checkExpired: {
-        actionType: 'resource',
-        icon: 'Clock',
-        label: 'Kiểm tra quyền hết hạn',
-        handler: async (request, response, context) => {
-          const expiredCount = await TeacherPermission.update(
-            { status: 'expired' },
-            {
-              where: {
-                status: 'active',
-                validTo: {
-                  [require('sequelize').Op.lt]: new Date()
-                }
-              }
-            }
-          );
-
-          return {
-            notice: {
-              message: `Đã cập nhật ${expiredCount[0]} quyền hết hạn`,
-              type: 'success'
-            }
-          };
-        }
-      }
     }
   }
 };
