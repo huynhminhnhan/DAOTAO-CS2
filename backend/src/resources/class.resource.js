@@ -4,6 +4,7 @@
  */
 import { Class } from '../database/index.js';
 import { getTeacherManagedClassIds } from '../middleware/teacherPermissions.js';
+import { Components } from '../config/components.js';
 
 const ClassResource = {
   resource: Class,
@@ -323,6 +324,26 @@ const ClassResource = {
             ['status', { flexGrow: 1 }]
           ]]
         ]
+      },
+      // Show action with custom component
+      show: {
+        isAccessible: true, // Allow both admin and teacher to view
+        component: Components.ClassDetail, // Use custom component
+        before: async (request, context) => {
+          const { currentAdmin } = context;
+          
+          // Teacher: Verify access to this specific class
+          if (currentAdmin?.role === 'teacher') {
+            const classId = parseInt(request.params.recordId);
+            const allowedClassIds = await getTeacherManagedClassIds(currentAdmin.id);
+            
+            if (allowedClassIds !== 'all' && !allowedClassIds.includes(classId)) {
+              throw new Error('Bạn không có quyền xem lớp này');
+            }
+          }
+          
+          return request;
+        }
       },
       // keep delete admin-only
       delete: { isAccessible: ({ currentAdmin }) => currentAdmin && currentAdmin.role === 'admin' }

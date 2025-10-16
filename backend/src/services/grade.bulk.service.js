@@ -134,7 +134,18 @@ const GradeBulkService = {
                         await GradeService.createGradeHistory(grade.id, session?.adminUser?.id, 'create', null, null, grade.toJSON(), { ipAddress: reqMeta.ipAddress, userAgent: reqMeta.userAgent, changedByRole: session?.adminUser?.role, reason: `${session?.adminUser?.username} đã tạo điểm mới${initialStatus === 'FINAL_ENTERED' ? ' (có điểm thi)' : ''}`, transaction: t });
                     }
 
-                    results.push({ studentId, studentCode: student.studentCode, studentName: student.fullName, gradeAction: created ? 'created' : 'updated', gradeId: grade.id, enrollmentId: enrollment.enrollmentId, enrollmentStatus: enrollment.status, attempt: enrollment.attempt });
+                    // Add full grade status info to response
+                    results.push({ 
+                        studentId, 
+                        studentCode: student.studentCode, 
+                        studentName: student.fullName, 
+                        gradeAction: created ? 'created' : 'updated', 
+                        gradeId: grade.id, 
+                        gradeStatus: grade.gradeStatus, // Add current grade status
+                        enrollmentId: enrollment.enrollmentId, 
+                        enrollmentStatus: enrollment.status, 
+                        attempt: enrollment.attempt 
+                    });
                 } catch (error) {
                     console.error(`Error processing grade for student ${gradeData.studentId}:`, error);
                     // rethrow to cause transaction rollback and propagate error to caller

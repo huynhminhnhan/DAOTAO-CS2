@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ApiClient } from 'adminjs';
+import * as XLSX from 'xlsx';
 import { 
   calculateTBKT, 
   getFormulaStrings,
@@ -31,6 +32,12 @@ const TeacherGradeEntry = () => {
   const [gradeStatuses, setGradeStatuses] = useState({}); // {studentId: {status, lockStatus, ...}}
   const [submitting, setSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, DRAFT, PENDING_REVIEW, APPROVED_TX_DK
+  
+  // Import Modal States
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   
   // Dynamic grade configuration
   const [gradeConfig, setGradeConfig] = useState({
@@ -641,13 +648,19 @@ const TeacherGradeEntry = () => {
                 
                 // Use data from API response if available
                 const gradeData = item.data; // Full Grade object from service
+                
+                // Get actual status from grade data (normalize to uppercase)
+                const actualStatus = gradeData?.gradeStatus 
+                  ? gradeData.gradeStatus.toUpperCase() 
+                  : 'PENDING_REVIEW';
+                
                 newStatuses[studentId] = {
                   gradeId: item.gradeId,
-                  gradeStatus: gradeData?.gradeStatus || 'PENDING_REVIEW',
+                  gradeStatus: actualStatus,
                   lockStatus: {
-                    txLocked: gradeData?.txLocked || true,
-                    dkLocked: gradeData?.dkLocked || true,
-                    finalLocked: gradeData?.finalLocked || false
+                    txLocked: gradeData?.txLocked ?? true,
+                    dkLocked: gradeData?.dkLocked ?? true,
+                    finalLocked: gradeData?.finalLocked ?? false
                   },
                   submittedForReviewAt: gradeData?.submittedForReviewAt || new Date().toISOString(),
                   approvedAt: gradeData?.approvedAt || null
@@ -661,7 +674,36 @@ const TeacherGradeEntry = () => {
           });
         }
         console.log('✅ Final gradeStatuses after submit:', newStatuses);
-        setGradeStatuses(newStatuses);
+        
+        // Force update by creating new object reference
+        setGradeStatuses({...newStatuses});
+        
+        // Also update students to reflect new status AND sync scores from grades state
+        setStudents(prevStudents => 
+          prevStudents.map(student => {
+            if (newStatuses[student.id]) {
+              // Get the latest grades from grades state (after save)
+              const latestGrade = grades[student.id] || {};
+              
+              return {
+                ...student,
+                params: {
+                  ...student.params,
+                  // Update status
+                  gradeStatus: newStatuses[student.id].gradeStatus,
+                  lockStatus: newStatuses[student.id].lockStatus,
+                  submittedForReviewAt: newStatuses[student.id].submittedForReviewAt,
+                  // Sync scores from grades state (latest changes)
+                  txScore: latestGrade.txScore || student.params.txScore || {},
+                  dkScore: latestGrade.dkScore || student.params.dkScore || {},
+                  tbktScore: latestGrade.tbktScore || student.params.tbktScore || '',
+                  notes: latestGrade.ghiChu || student.params.notes || ''
+                }
+              };
+            }
+            return student;
+          })
+        );
         
         const message = failedCount > 0 
           ? `✅ Đã nộp ${successCount}/${gradeIds.length} điểm để duyệt!\n\n⚠️ ${failedCount} điểm không thể nộp (có thể đã được nộp trước đó).`
@@ -781,14 +823,17 @@ const TeacherGradeEntry = () => {
         result.results.details.forEach(detail => {
           console.log('  - Detail:', detail);
           if (detail.gradeId && detail.studentId) {
+            // Use the actual status from API response, fallback to DRAFT if not provided
+            const actualStatus = detail.gradeStatus || detail.status || 'DRAFT';
+            
             newStatuses[detail.studentId] = {
               gradeId: detail.gradeId,
-              gradeStatus: 'DRAFT', // Newly saved grades are in DRAFT status
-              lockStatus: { txLocked: false, dkLocked: false, finalLocked: false },
-              submittedForReviewAt: null,
-              approvedAt: null
+              gradeStatus: actualStatus, // Use actual status from API
+              lockStatus: detail.lockStatus || { txLocked: false, dkLocked: false, finalLocked: false },
+              submittedForReviewAt: detail.submittedForReviewAt || null,
+              approvedAt: detail.approvedAt || null
             };
-            console.log(`  ✅ Updated status for student ${detail.studentId} with gradeId ${detail.gradeId}`);
+            console.log(`  ✅ Updated status for student ${detail.studentId} with gradeId ${detail.gradeId}, status: ${actualStatus}`);
           } else {
             console.warn(`  ⚠️ Missing gradeId or studentId:`, detail);
           }
@@ -812,6 +857,254 @@ const TeacherGradeEntry = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  
+  // Import Functions
+  const downloadImportTemplate = async () => {
+    try {
+      // Gọi API backend để tạo file Excel (giống StudentImportComponent)
+      const response = await fetch(
+        `${API_ENDPOINTS.GRADE.DOWNLOAD_TXDK_TEMPLATE}?txColumns=${gradeConfig.txColumns}&dkColumns=${gradeConfig.dkColumns}`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Không thể tải template');
+      }
+      
+      const blob = await response.blob();
+      
+      // Download file Excel
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Template_Import_TX_DK_${gradeConfig.txColumns}TX_${gradeConfig.dkColumns}DK.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+      
+      console.log('✅ Template Excel downloaded successfully');
+    } catch (error) {
+      console.error('❌ Error downloading template:', error);
+      alert('Lỗi khi tải template: ' + error.message);
+    }
+  };
+
+  const handleImportFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setImportFile(file);
+      setImportResult(null);
+    }
+  };
+
+  const handleImportTxDkScores = async () => {
+    if (!importFile) {
+      alert('Vui lòng chọn file để import');
+      return;
+    }
+
+    try {
+      setImporting(true);
+      setError('');
+
+      let dataRows = [];
+      const fileName = importFile.name.toLowerCase();
+
+      // Kiểm tra loại file và parse tương ứng
+      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        // Parse Excel file
+        const arrayBuffer = await importFile.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (jsonData.length < 2) {
+          throw new Error('File Excel không có dữ liệu');
+        }
+
+        // Convert to array of objects
+        const headers = jsonData[0];
+        dataRows = jsonData.slice(1).map(row => {
+          const obj = {};
+          headers.forEach((header, idx) => {
+            obj[header] = row[idx] !== undefined ? row[idx] : '';
+          });
+          return obj;
+        });
+
+      } else if (fileName.endsWith('.csv')) {
+        // Parse CSV file
+        const fileContent = await importFile.text();
+        const lines = fileContent.split('\n').filter(line => line.trim());
+
+        if (lines.length < 2) {
+          throw new Error('File CSV không có dữ liệu');
+        }
+
+        const headers = lines[0].replace(/^\uFEFF/, '').split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        
+        dataRows = lines.slice(1).map(line => {
+          const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+          const obj = {};
+          headers.forEach((header, idx) => {
+            obj[header] = values[idx] || '';
+          });
+          return obj;
+        });
+
+      } else {
+        throw new Error('Định dạng file không được hỗ trợ. Vui lòng chọn file .xlsx hoặc .csv');
+      }
+
+      // Validate header structure
+      const expectedHeaders = ['MSSV', 'Họ và tên'];
+      for (let i = 1; i <= gradeConfig.txColumns; i++) {
+        expectedHeaders.push(`TX${i}`);
+      }
+      for (let i = 1; i <= gradeConfig.dkColumns; i++) {
+        expectedHeaders.push(`ĐK${i}`);
+      }
+
+      const actualHeaders = Object.keys(dataRows[0] || {});
+      const headerValid = expectedHeaders.every(h => actualHeaders.includes(h));
+      if (!headerValid) {
+        throw new Error(`Header không đúng định dạng!\n\nYêu cầu: ${expectedHeaders.join(', ')}\n\nThực tế: ${actualHeaders.join(', ')}`);
+      }
+
+      const errors = [];
+      let successCount = 0;
+      const updatedGrades = { ...grades };
+
+      // Process each data row
+      dataRows.forEach((row, index) => {
+        const studentCode = row['MSSV']?.toString().trim();
+        
+        if (!studentCode) {
+          errors.push(`Dòng ${index + 2}: Thiếu mã sinh viên`);
+          return;
+        }
+
+        // Find student by code
+        const student = students.find(s => s.params?.studentCode === studentCode);
+        if (!student) {
+          errors.push(`Dòng ${index + 2}: Không tìm thấy sinh viên ${studentCode}`);
+          return;
+        }
+
+        // Check if student grade is editable
+        if (!canEditGrade(student.id)) {
+          errors.push(`Dòng ${index + 2}: Sinh viên ${studentCode} không thể chỉnh sửa điểm (đã nộp duyệt)`);
+          return;
+        }
+
+        // Parse TX scores
+        const txScore = {};
+        for (let j = 1; j <= gradeConfig.txColumns; j++) {
+          const scoreValue = row[`TX${j}`];
+          if (scoreValue !== undefined && scoreValue !== null && scoreValue !== '') {
+            const score = parseFloat(scoreValue);
+            if (isNaN(score) || score < 0 || score > 10) {
+              errors.push(`Dòng ${index + 2}: Điểm TX${j} không hợp lệ (${scoreValue}). Phải từ 0-10`);
+              return;
+            }
+            txScore[`tx${j}`] = score.toString();
+          }
+        }
+
+        // Parse DK scores
+        const dkScore = {};
+        for (let j = 1; j <= gradeConfig.dkColumns; j++) {
+          const scoreValue = row[`ĐK${j}`];
+          if (scoreValue !== undefined && scoreValue !== null && scoreValue !== '') {
+            const score = parseFloat(scoreValue);
+            if (isNaN(score) || score < 0 || score > 10) {
+              errors.push(`Dòng ${index + 2}: Điểm ĐK${j} không hợp lệ (${scoreValue}). Phải từ 0-10`);
+              return;
+            }
+            dkScore[`dk${j}`] = score.toString();
+          }
+        }
+
+        // Update grades state
+        if (!updatedGrades[student.id]) {
+          updatedGrades[student.id] = {
+            enrollmentId: student.enrollmentId,
+            txScore: {},
+            dkScore: {},
+            tbktScore: '',
+            ghiChu: '',
+            gradeId: student.params?.gradeId || null
+          };
+        }
+
+        // Merge TX scores
+        updatedGrades[student.id].txScore = {
+          ...updatedGrades[student.id].txScore,
+          ...txScore
+        };
+
+        // Merge DK scores
+        updatedGrades[student.id].dkScore = {
+          ...updatedGrades[student.id].dkScore,
+          ...dkScore
+        };
+
+        // Auto-calculate TBKT
+        const hasTxData = Object.values(updatedGrades[student.id].txScore).some(val => val !== '' && val !== null);
+        const hasDkData = Object.values(updatedGrades[student.id].dkScore).some(val => val !== '' && val !== null);
+        
+        if (hasTxData && hasDkData) {
+          updatedGrades[student.id].tbktScore = calculateTBKT(
+            updatedGrades[student.id].txScore,
+            updatedGrades[student.id].dkScore
+          );
+        }
+
+        successCount++;
+      });
+
+      // Update state
+      setGrades(updatedGrades);
+
+      // Set result
+      setImportResult({
+        success: true,
+        total: dataRows.length,
+        successCount,
+        errorCount: errors.length,
+        errors
+      });
+
+      if (successCount > 0) {
+        alert(`✅ Import thành công ${successCount}/${dataRows.length} sinh viên!\n\n${errors.length > 0 ? `⚠️ Có ${errors.length} lỗi. Xem chi tiết bên dưới.` : ''}`);
+      } else {
+        alert(`❌ Không import được sinh viên nào!\n\nVui lòng kiểm tra file và thử lại.`);
+      }
+
+    } catch (error) {
+      console.error('❌ Error importing scores:', error);
+      setError('Lỗi import điểm: ' + error.message);
+      alert('❌ Lỗi: ' + error.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const canShowImportButton = () => {
+    if (!selectedSubject || students.length === 0) {
+      return false;
+    }
+
+    // Check if there are any students with DRAFT status (editable)
+    const hasEditableGrades = students.some(student => {
+      const status = gradeStatuses[student.id];
+      return !status || !status.gradeStatus || status.gradeStatus === 'DRAFT';
+    });
+
+    return hasEditableGrades;
   };
 
   return (
@@ -1015,10 +1308,42 @@ const TeacherGradeEntry = () => {
                 <span>📊 Tổng số sinh viên: {students.length}</span>
               </div>
 
-              <h3 style={{ marginBottom: '15px', color: '#495057' }}>
-                📝 Nhập điểm môn: {selectedSubjectInfo?.params?.subjectName || selectedSubject} 
-                ({selectedSubjectInfo?.params?.credits || 2} tín chỉ)
-              </h3>
+              {/* Header với nút Import */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: '15px',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}>
+                <h3 style={{ margin: 0, color: '#495057' }}>
+                  📝 Nhập điểm môn: {selectedSubjectInfo?.params?.subjectName || selectedSubject} 
+                  ({selectedSubjectInfo?.params?.credits || 2} tín chỉ)
+                </h3>
+                
+                {/* Import Button */}
+                {canShowImportButton() && (
+                  <button
+                    onClick={() => setShowImportModal(true)}
+                    disabled={loading || importing}
+                    style={{
+                      padding: '10px 24px',
+                      backgroundColor: (loading || importing) ? '#6c757d' : '#17a2b8',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      cursor: (loading || importing) ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    📥 Import điểm TX/ĐK
+                  </button>
+                )}
+              </div>
           
               {/* Cấu hình cột điểm */}
               <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: '5px' }}>
@@ -1311,6 +1636,12 @@ const TeacherGradeEntry = () => {
                   );
                 }
                 
+                // Check if there are any saved grades (has gradeId)
+                const hasSavedGrades = students.some(student => {
+                  const status = gradeStatuses[student.id];
+                  return status && status.gradeId;
+                });
+
                 return (
                   <div style={{ marginTop: '20px', textAlign: 'center', display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
                     <button
@@ -1331,41 +1662,44 @@ const TeacherGradeEntry = () => {
                       {loading ? '⏳ Đang lưu...' : '💾 Lưu điểm'}
                     </button>
                     
-                    <button
-                      onClick={() => {
-                        // Get all students with DRAFT status and gradeId
-                        const draftStudents = students
-                          .filter(student => {
-                            const status = gradeStatuses[student.id];
-                            // Must have gradeId (grade was saved) and status is DRAFT
-                            return status && status.gradeId && (!status.gradeStatus || status.gradeStatus === 'DRAFT');
-                          })
-                          .map(s => s.id);
-                        
-                        if (draftStudents.length === 0) {
-                          alert('Không có điểm nào ở trạng thái Bản nháp để nộp duyệt.\n\n⚠️ Lưu ý: Vui lòng LƯU ĐIỂM trước khi nộp duyệt!\n\nCác điểm mới nhập phải được lưu vào hệ thống trước khi có thể nộp duyệt.');
-                          return;
-                        }
-                        
-                        if (confirm(`Bạn có chắc muốn nộp ${draftStudents.length} điểm để admin duyệt?\n\nSau khi nộp, bạn sẽ không thể chỉnh sửa cho đến khi admin duyệt hoặc từ chối.`)) {
-                          submitForReview(draftStudents);
-                        }
-                      }}
-                      disabled={submitting || loading}
-                      style={{
-                        padding: '12px 40px',
-                        backgroundColor: (submitting || loading) ? '#6c757d' : '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    cursor: (submitting || loading) ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  {submitting ? '⏳ Đang nộp...' : '📤 Nộp điểm để duyệt'}
-                </button>
+                    {/* Only show submit button if there are saved grades */}
+                    {hasSavedGrades && (
+                      <button
+                        onClick={() => {
+                          // Get all students with DRAFT status and gradeId
+                          const draftStudents = students
+                            .filter(student => {
+                              const status = gradeStatuses[student.id];
+                              // Must have gradeId (grade was saved) and status is DRAFT
+                              return status && status.gradeId && (!status.gradeStatus || status.gradeStatus === 'DRAFT');
+                            })
+                            .map(s => s.id);
+                          
+                          if (draftStudents.length === 0) {
+                            alert('Không có điểm nào ở trạng thái Bản nháp để nộp duyệt.\n\n⚠️ Lưu ý: Vui lòng LƯU ĐIỂM trước khi nộp duyệt!\n\nCác điểm mới nhập phải được lưu vào hệ thống trước khi có thể nộp duyệt.');
+                            return;
+                          }
+                          
+                          if (confirm(`Bạn có chắc muốn nộp ${draftStudents.length} điểm để admin duyệt?\n\nSau khi nộp, bạn sẽ không thể chỉnh sửa cho đến khi admin duyệt hoặc từ chối.`)) {
+                            submitForReview(draftStudents);
+                          }
+                        }}
+                        disabled={submitting || loading}
+                        style={{
+                          padding: '12px 40px',
+                          backgroundColor: (submitting || loading) ? '#6c757d' : '#007bff',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '5px',
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          cursor: (submitting || loading) ? 'not-allowed' : 'pointer',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        {submitting ? '⏳ Đang nộp...' : '📤 Nộp điểm để duyệt'}
+                      </button>
+                    )}
                   </div>
                 );
               })()}
@@ -1433,6 +1767,255 @@ const TeacherGradeEntry = () => {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '30px',
+            maxWidth: '700px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px',
+              borderBottom: '2px solid #007bff',
+              paddingBottom: '15px'
+            }}>
+              <h2 style={{ margin: 0, color: '#007bff' }}>
+                📥 Import Điểm TX/ĐK từ Excel
+              </h2>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportFile(null);
+                  setImportResult(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#999'
+                }}
+              >
+                ✖
+              </button>
+            </div>
+
+            {/* Instructions */}
+            <div style={{
+              backgroundColor: '#e7f3ff',
+              border: '1px solid #b3d9ff',
+              borderRadius: '5px',
+              padding: '15px',
+              marginBottom: '20px',
+              fontSize: '14px'
+            }}>
+              <strong>📋 Hướng dẫn:</strong>
+              <ol style={{ margin: '10px 0 0 20px', paddingLeft: '0' }}>
+                <li>Click <strong>"📥 Tải Template"</strong> để tải file Excel (.xlsx) mẫu</li>
+                <li>Mở file bằng Excel/LibreOffice và điền điểm TX và ĐK cho từng sinh viên</li>
+                <li>Lưu file (giữ nguyên định dạng .xlsx hoặc lưu thành .csv nếu muốn)</li>
+                <li>Click <strong>"Chọn file"</strong> và chọn file vừa lưu</li>
+                <li>Click <strong>"📤 Import"</strong> để nhập điểm vào hệ thống</li>
+              </ol>
+              <div style={{ marginTop: '10px', padding: '8px', backgroundColor: '#fff3cd', border: '1px solid #ffc107', borderRadius: '4px' }}>
+                <strong>⚠️ Lưu ý:</strong>
+                <ul style={{ margin: '5px 0 0 20px', paddingLeft: '0' }}>
+                  <li>Cấu hình hiện tại: <strong>{gradeConfig.txColumns} cột TX</strong> và <strong>{gradeConfig.dkColumns} cột ĐK</strong></li>
+                  <li>Template sẽ tự động tạo đúng số cột theo cấu hình</li>
+                  <li>Hỗ trợ định dạng: <strong>.xlsx, .xls, .csv</strong></li>
+                  <li>Điểm hợp lệ: từ 0 đến 10</li>
+                  <li>Chỉ import được cho sinh viên ở trạng thái <strong>Bản nháp</strong></li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Download Template Button */}
+            <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+              <button
+                onClick={downloadImportTemplate}
+                style={{
+                  padding: '12px 30px',
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}
+              >
+                📥 Tải Template ({gradeConfig.txColumns} TX + {gradeConfig.dkColumns} ĐK)
+              </button>
+            </div>
+
+            {/* File Input */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: 'bold',
+                fontSize: '14px'
+              }}>
+                📎 Chọn file Excel hoặc CSV để import:
+              </label>
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleImportFileSelect}
+                style={{
+                  padding: '10px',
+                  border: '2px dashed #007bff',
+                  borderRadius: '5px',
+                  width: '100%',
+                  fontSize: '14px',
+                  backgroundColor: '#f8f9fa'
+                }}
+              />
+              {importFile && (
+                <div style={{
+                  marginTop: '10px',
+                  padding: '8px',
+                  backgroundColor: '#d1ecf1',
+                  border: '1px solid #bee5eb',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  color: '#0c5460'
+                }}>
+                  ✅ Đã chọn: <strong>{importFile.name}</strong>
+                </div>
+              )}
+            </div>
+
+            {/* Import Result */}
+            {importResult && (
+              <div style={{
+                marginBottom: '20px',
+                padding: '15px',
+                backgroundColor: importResult.success ? '#d4edda' : '#f8d7da',
+                border: `1px solid ${importResult.success ? '#c3e6cb' : '#f5c6cb'}`,
+                borderRadius: '5px',
+                fontSize: '14px'
+              }}>
+                <strong style={{ color: importResult.success ? '#155724' : '#721c24' }}>
+                  {importResult.success ? '✅ Kết quả Import:' : '❌ Import thất bại:'}
+                </strong>
+                <div style={{ marginTop: '10px' }}>
+                  <div>📊 Tổng số: {importResult.total}</div>
+                  <div>✅ Thành công: {importResult.successCount}</div>
+                  <div>❌ Lỗi: {importResult.errorCount}</div>
+                </div>
+                {importResult.errors && importResult.errors.length > 0 && (
+                  <div style={{
+                    marginTop: '10px',
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    backgroundColor: 'white',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    fontSize: '12px'
+                  }}>
+                    <strong>Chi tiết lỗi:</strong>
+                    <ul style={{ margin: '5px 0 0 20px', paddingLeft: '0' }}>
+                      {importResult.errors.map((error, index) => (
+                        <li key={index} style={{ color: '#721c24', marginBottom: '3px' }}>
+                          {error}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '10px',
+              justifyContent: 'center',
+              marginTop: '20px'
+            }}>
+              <button
+                onClick={handleImportTxDkScores}
+                disabled={!importFile || importing}
+                style={{
+                  padding: '12px 30px',
+                  backgroundColor: (!importFile || importing) ? '#6c757d' : '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  cursor: (!importFile || importing) ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}
+              >
+                {importing ? '⏳ Đang import...' : '📤 Import'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportFile(null);
+                  setImportResult(null);
+                }}
+                style={{
+                  padding: '12px 30px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+
+            {/* Warning */}
+            <div style={{
+              marginTop: '20px',
+              padding: '10px',
+              backgroundColor: '#fff3cd',
+              border: '1px solid #ffc107',
+              borderRadius: '5px',
+              fontSize: '12px',
+              color: '#856404'
+            }}>
+              <strong>⚠️ Lưu ý quan trọng:</strong>
+              <ul style={{ margin: '5px 0 0 20px', paddingLeft: '0' }}>
+                <li>Import sẽ <strong>GHI ĐÈ</strong> điểm TX/ĐK hiện tại của sinh viên</li>
+                <li>Sau khi import, nhớ kiểm tra lại điểm trước khi nhấn <strong>"💾 Lưu điểm"</strong></li>
+                <li>Chỉ import được cho sinh viên ở trạng thái <strong>Bản nháp</strong></li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
     </div>

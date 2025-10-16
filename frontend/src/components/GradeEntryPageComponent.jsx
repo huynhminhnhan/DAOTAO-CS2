@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ApiClient } from 'adminjs';
+import * as XLSX from 'xlsx';
 import { 
   calculateTBKT, 
   calculateTBMH, 
@@ -8,6 +9,7 @@ import {
   GRADE_COEFFICIENTS,
   GRADE_WEIGHTS 
 } from '../utils/gradeCalculation';
+import { API_ENDPOINTS } from '../config/api.config';
 import RetakeManagementComponent from './RetakeManagementComponent.jsx';
 
 /**
@@ -46,6 +48,12 @@ const GradeEntryPage = () => {
     maxTxColumns: 10,
     maxDkColumns: 10
   });
+
+  // State for Import Final Score Modal
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
 
   const api = new ApiClient();
   
@@ -1400,6 +1408,235 @@ const GradeEntryPage = () => {
     }
   };
 
+  // ==================== IMPORT FINAL SCORE FUNCTIONS ====================
+  
+  const downloadImportTemplate = async () => {
+    try {
+      // Gọi API backend để tạo file Excel (giống TeacherGradeEntryComponent)
+      const response = await fetch(API_ENDPOINTS.GRADE.DOWNLOAD_FINAL_EXAM_TEMPLATE);
+      
+      if (!response.ok) {
+        throw new Error('Không thể tải template');
+      }
+      
+      const blob = await response.blob();
+      
+      // Download file Excel
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Template_Import_DiemThi.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+      
+      console.log('✅ Template Excel downloaded successfully');
+    } catch (error) {
+      console.error('❌ Error downloading template:', error);
+      alert('Lỗi khi tải template: ' + error.message);
+    }
+  };
+
+  const handleImportFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImportFile(file);
+      setImportResult(null);
+    }
+  };
+
+  const handleImportFinalScores = async () => {
+    if (!importFile) {
+      alert('❌ Vui lòng chọn file để import');
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      let dataRows = [];
+      const fileName = importFile.name.toLowerCase();
+
+      // Kiểm tra loại file và parse tương ứng
+      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        // Parse Excel file
+        const arrayBuffer = await importFile.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (jsonData.length < 2) {
+          throw new Error('File Excel không có dữ liệu');
+        }
+
+        // Convert to array of objects
+        const headers = jsonData[0];
+        dataRows = jsonData.slice(1)
+          .filter(row => row.length > 0)
+          .map(row => {
+            const obj = {};
+            headers.forEach((header, idx) => {
+              obj[header] = row[idx] !== undefined ? row[idx] : '';
+            });
+            return obj;
+          });
+
+      } else if (fileName.endsWith('.csv')) {
+        // Parse CSV file
+        const fileContent = await importFile.text();
+        const lines = fileContent.split('\n').filter(line => line.trim());
+
+        if (lines.length < 2) {
+          throw new Error('File CSV không có dữ liệu');
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        
+        dataRows = lines.slice(1).map(line => {
+          const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+          const obj = {};
+          headers.forEach((header, idx) => {
+            obj[header] = values[idx] || '';
+          });
+          return obj;
+        });
+
+      } else {
+        throw new Error('Định dạng file không được hỗ trợ. Vui lòng chọn file .xlsx hoặc .csv');
+      }
+
+      // Find column indices
+      const firstRow = dataRows[0] || {};
+      const headers = Object.keys(firstRow);
+      const mssvKey = headers.find(h => h.includes('MSSV') || h.includes('Mã'));
+      const scoreKey = headers.find(h => h.includes('Điểm thi') || h.includes('Final'));
+
+      if (!mssvKey || !scoreKey) {
+        throw new Error('File không đúng định dạng. Cần có cột "MSSV" và "Điểm thi"');
+      }
+
+      // Parse data rows
+      const importData = {};
+      let successCount = 0;
+      let errorCount = 0;
+      const errors = [];
+
+      dataRows.forEach((row, index) => {
+        const mssv = row[mssvKey]?.toString().trim();
+        const scoreStr = row[scoreKey];
+
+        if (!mssv) return;
+
+        // Validate score
+        const score = parseFloat(scoreStr);
+        if (isNaN(score) || score < 0 || score > 10) {
+          errors.push(`Dòng ${index + 2}: MSSV ${mssv} - Điểm không hợp lệ: ${scoreStr}`);
+          errorCount++;
+          return;
+        }
+
+        importData[mssv] = score;
+        successCount++;
+      });
+
+      // Apply imported scores to grades state
+      const updatedGrades = { ...grades };
+      let appliedCount = 0;
+
+      students.forEach(student => {
+        const studentCode = student.params?.studentCode;
+        if (studentCode && importData[studentCode] !== undefined) {
+          if (!updatedGrades[student.id]) {
+            updatedGrades[student.id] = {
+              enrollmentId: student.enrollmentId,
+              txScore: {},
+              dkScore: {},
+              finalScore: '',
+              tbktScore: '',
+              tbmhScore: '',
+              ghiChu: '',
+              gradeId: student.params?.gradeId || null
+            };
+          }
+          updatedGrades[student.id].finalScore = importData[studentCode].toString();
+          
+          // Recalculate TBMH if TBKT exists
+          const tbkt = parseFloat(updatedGrades[student.id].tbktScore);
+          if (!isNaN(tbkt)) {
+            updatedGrades[student.id].tbmhScore = calculateTBMH(tbkt, importData[studentCode]);
+          }
+          
+          appliedCount++;
+        }
+      });
+
+      setGrades(updatedGrades);
+      setImportResult({
+        success: true,
+        total: dataRows.length,
+        successCount,
+        errorCount,
+        appliedCount,
+        errors: errors.slice(0, 10) // Show first 10 errors
+      });
+
+      alert(`✅ Import thành công!\n\n📊 Đã import: ${appliedCount} điểm\n✅ Hợp lệ: ${successCount}\n❌ Lỗi: ${errorCount}`);
+
+    } catch (error) {
+      console.error('Import error:', error);
+      alert(`❌ Lỗi import: ${error.message}`);
+      setImportResult({
+        success: false,
+        error: error.message
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const canShowImportButton = () => {
+    // Chỉ hiển thị khi:
+    // 1. Đã chọn môn học
+    if (!selectedSubject) return false;
+    
+    // 2. Có sinh viên trong danh sách
+    if (students.length === 0) return false;
+    
+    // 3. Điểm TX/ĐK đã được duyệt (APPROVED_TX_DK hoặc cao hơn)
+    const hasApprovedTxDk = students.some(student => {
+      const gradeStatus = gradeStatuses[student.id];
+      if (!gradeStatus) return false; // Chưa có status = chưa duyệt
+      
+      // Kiểm tra xem đã approved TX/ĐK chưa
+      const currentStatus = gradeStatus.gradeStatus || '';
+      const approvedStatuses = ['APPROVED_TX_DK', 'FINAL_ENTERED', 'FINALIZED'];
+      return approvedStatuses.includes(currentStatus);
+    });
+    
+    if (!hasApprovedTxDk) return false;
+    
+    // 4. Có ít nhất 1 sinh viên mà điểm thi chưa bị lock
+    return students.some(student => {
+      const gradeStatus = gradeStatuses[student.id];
+      if (!gradeStatus) return true; // Chưa có status = chưa lock
+      
+      // Check finalLocked
+      let lockStatus = gradeStatus?.lockStatus;
+      if (typeof lockStatus === 'string') {
+        try {
+          lockStatus = JSON.parse(lockStatus);
+        } catch (e) {
+          return true;
+        }
+      }
+      
+      return lockStatus?.finalLocked !== true;
+    });
+  };
+
   return (
     <div style={{ padding: '20px', maxWidth: '1200px'}}>
       <h1 style={{ marginBottom: '20px', color: '#333' }}>📊 Trang Nhập Điểm</h1>
@@ -1566,11 +1803,42 @@ const GradeEntryPage = () => {
 
           {students.length > 0 ? (
             <>
-              <h3 style={{ marginBottom: '15px', color: '#495057' }}>
-                📝 Nhập điểm môn: {selectedSubjectInfo?.params?.subjectName || selectedSubject} 
-                ({selectedSubjectInfo?.params?.credits || 2} tín chỉ)
-              </h3>
-          
+              {/* Header với nút Import */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: '15px',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}>
+                <h3 style={{ margin: 0, color: '#495057' }}>
+                  📝 Nhập điểm môn: {selectedSubjectInfo?.params?.subjectName || selectedSubject} 
+                  ({selectedSubjectInfo?.params?.credits || 2} tín chỉ)
+                </h3>
+                
+                {/* Nút Import điểm thi - Hiển thị khi đã chọn môn và điểm thi chưa lock */}
+                {canShowImportButton() && (
+                  <button
+                    onClick={() => setShowImportModal(true)}
+                    disabled={loading}
+                    style={{
+                      padding: '10px 24px',
+                      backgroundColor: loading ? '#6c757d' : '#17a2b8',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    📥 Import điểm thi
+                  </button>
+                )}
+              </div>
+              
               {students.length > 0 && !students.some(s => grades[s.id]?.gradeId) && (
             <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: '5px' }}>
               <h5 style={{ margin: '0 0 10px 0', color: '#495057' }}>⚙️ Cấu hình cột điểm</h5>
@@ -1670,7 +1938,7 @@ const GradeEntryPage = () => {
                   }}
                   title="Duyệt tất cả điểm đang chờ duyệt"
                 >
-                  {loading ? '⏳ Đang xử lý...' : '✅ Duyệt tất cả'}
+                  {loading ? '⏳ Đang xử lý...' : '✅ Duyệt tất cả điểm TX,ĐK'}
                 </button>
               )}
           {loading ? (
@@ -2155,6 +2423,8 @@ const GradeEntryPage = () => {
               {loading ? '⏳ Đang lưu...' : '💾 Lưu điểm'}
             </button>
 
+            
+
             {/* Nút Chốt điểm thi tất cả - Chỉ hiển thị khi có sinh viên có finalScore ĐÃ LƯU VÀO DB và chưa lock */}
             {students.some(s => {
               const studentGrade = grades[s.id];
@@ -2345,6 +2615,224 @@ const GradeEntryPage = () => {
           borderRadius: '4px'
         }}>
           ⚠️ <strong>Chưa có sinh viên:</strong> Lớp này chưa có sinh viên nào. Vui lòng thêm sinh viên vào lớp trước khi nhập điểm.
+        </div>
+      )}
+
+      {/* Modal Import điểm thi */}
+      {showImportModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '30px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, color: '#333' }}>📥 Import Điểm Thi</h2>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportFile(null);
+                  setImportResult(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Hướng dẫn */}
+            <div style={{
+              backgroundColor: '#e7f3ff',
+              padding: '15px',
+              borderRadius: '6px',
+              marginBottom: '20px',
+              border: '1px solid #b3d9ff'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: '#0066cc' }}>📋 Hướng dẫn:</h4>
+              <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '14px' }}>
+                <li>Tải file template Excel (.xlsx) mẫu</li>
+                <li>Điền điểm thi vào cột "Điểm thi" (0-10)</li>
+                <li>Lưu file (giữ nguyên .xlsx hoặc lưu thành .csv)</li>
+                <li>Chọn file và click "Thực hiện Import"</li>
+                <li>Nhấn "💾 Lưu điểm" để lưu vào hệ thống</li>
+              </ol>
+              <div style={{ marginTop: '10px', padding: '8px', backgroundColor: '#fff3cd', border: '1px solid #ffc107', borderRadius: '4px', fontSize: '13px' }}>
+                <strong>💡 Lưu ý:</strong> Hỗ trợ định dạng <strong>.xlsx, .xls, .csv</strong>
+              </div>
+            </div>
+
+            {/* Nút tải template */}
+            <div style={{ marginBottom: '20px' }}>
+              <button
+                onClick={downloadImportTemplate}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  width: '100%'
+                }}
+              >
+                📥 Tải Template Excel
+              </button>
+            </div>
+
+            {/* File input */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: 'bold',
+                color: '#333'
+              }}>
+                Chọn file Excel hoặc CSV để import:
+              </label>
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleImportFileSelect}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '2px dashed #ccc',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              />
+              {importFile && (
+                <div style={{ marginTop: '8px', fontSize: '14px', color: '#28a745' }}>
+                  ✅ Đã chọn: {importFile.name}
+                </div>
+              )}
+            </div>
+
+            {/* Import result */}
+            {importResult && (
+              <div style={{
+                padding: '15px',
+                borderRadius: '6px',
+                marginBottom: '20px',
+                backgroundColor: importResult.success ? '#d4edda' : '#f8d7da',
+                border: `1px solid ${importResult.success ? '#c3e6cb' : '#f5c6cb'}`,
+                color: importResult.success ? '#155724' : '#721c24'
+              }}>
+                {importResult.success ? (
+                  <>
+                    <strong>✅ Import thành công!</strong>
+                    <div style={{ marginTop: '10px', fontSize: '14px' }}>
+                      📊 Tổng: {importResult.total} dòng<br/>
+                      ✅ Hợp lệ: {importResult.successCount}<br/>
+                      📥 Đã áp dụng: {importResult.appliedCount}<br/>
+                      ❌ Lỗi: {importResult.errorCount}
+                    </div>
+                    {importResult.errors && importResult.errors.length > 0 && (
+                      <div style={{ marginTop: '10px', fontSize: '12px' }}>
+                        <strong>Lỗi:</strong>
+                        <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                          {importResult.errors.map((err, i) => (
+                            <li key={i}>{err}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <strong>❌ Lỗi import!</strong>
+                    <div style={{ marginTop: '8px', fontSize: '14px' }}>
+                      {importResult.error}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handleImportFinalScores}
+                disabled={!importFile || importing}
+                style={{
+                  flex: 1,
+                  padding: '12px 24px',
+                  backgroundColor: !importFile || importing ? '#6c757d' : '#17a2b8',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: !importFile || importing ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}
+              >
+                {importing ? '⏳ Đang xử lý...' : '🚀 Thực hiện Import'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportFile(null);
+                  setImportResult(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 24px',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+
+            {/* Lưu ý */}
+            <div style={{
+              marginTop: '20px',
+              padding: '12px',
+              backgroundColor: '#fff3cd',
+              border: '1px solid #ffc107',
+              borderRadius: '6px',
+              fontSize: '13px',
+              color: '#856404'
+            }}>
+              <strong>⚠️ Lưu ý:</strong>
+              <ul style={{ margin: '5px 0 0 0', paddingLeft: '20px' }}>
+                <li>Sau khi import, dữ liệu sẽ hiển thị trong bảng nhập điểm</li>
+                <li>Bạn cần nhấn nút "💾 Lưu điểm" để lưu vào database</li>
+                <li>Điểm thi phải từ 0 đến 10</li>
+                <li>File CSV phải có 3 cột: MSSV, Họ và tên, Điểm thi</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
     </div>

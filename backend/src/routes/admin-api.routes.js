@@ -58,6 +58,15 @@ router.get('/admin-api/subjects/by-class/:classId', AdminApiController.getSubjec
 // Admin-only endpoint to return dashboard stats
 router.get('/admin-api/dashboard-stats', AdminApiController.getDashboardStats);
 
+// Admin-only endpoint to get students by class
+router.get('/admin-api/classes/:classId/students', AdminApiController.getStudentsByClass);
+
+// Admin-only endpoint to get cohort by ID
+router.get('/admin-api/cohorts/:cohortId', AdminApiController.getCohortById);
+
+// Admin-only endpoint to get teachers by IDs
+router.get('/admin-api/teachers', AdminApiController.getTeachersByIds);
+
 // Admin-only endpoint to create teacher permission
 router.post('/admin-api/teacher-permissions', AdminApiController.createTeacherPermission);
 

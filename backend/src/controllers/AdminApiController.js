@@ -158,6 +158,121 @@ const AdminApiController = {
         message: err.message 
       });
     }
+  },
+
+  async getStudentsByClass(req, res) {
+    try {
+      const { classId } = req.params;
+      
+      if (!classId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'classId là bắt buộc' 
+        });
+      }
+
+      // Import Student model
+      const { Student } = await import('../database/index.js');
+      
+      // Find all students in the class
+      const students = await Student.findAll({
+        where: { classId: parseInt(classId) },
+        order: [['studentCode', 'ASC']],
+        raw: true
+      });
+      
+      return res.json({ 
+        success: true, 
+        students: students,
+        total: students.length
+      });
+    } catch (err) {
+      console.error('AdminApiController.getStudentsByClass error:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: err.message 
+      });
+    }
+  },
+
+  async getCohortById(req, res) {
+    try {
+      const { cohortId } = req.params;
+      
+      if (!cohortId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'cohortId là bắt buộc' 
+        });
+      }
+
+      // Import Cohort model
+      const { Cohort } = await import('../database/index.js');
+      
+      // Find cohort by ID
+      const cohort = await Cohort.findByPk(cohortId, { raw: true });
+      
+      if (!cohort) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Không tìm thấy khóa học' 
+        });
+      }
+      
+      return res.json({ 
+        success: true, 
+        data: cohort
+      });
+    } catch (err) {
+      console.error('AdminApiController.getCohortById error:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: err.message 
+      });
+    }
+  },
+
+  async getTeachersByIds(req, res) {
+    try {
+      const { ids } = req.query;
+      
+      if (!ids) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'ids parameter là bắt buộc' 
+        });
+      }
+
+      // Parse comma-separated IDs
+      const teacherIds = ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      
+      if (teacherIds.length === 0) {
+        return res.json({ 
+          success: true, 
+          teachers: []
+        });
+      }
+
+      // Import Teacher model
+      const { Teacher } = await import('../database/index.js');
+      
+      // Find teachers by IDs
+      const teachers = await Teacher.findAll({
+        where: { id: teacherIds },
+        raw: true
+      });
+      
+      return res.json({ 
+        success: true, 
+        teachers: teachers
+      });
+    } catch (err) {
+      console.error('AdminApiController.getTeachersByIds error:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: err.message 
+      });
+    }
   }
 };
 
