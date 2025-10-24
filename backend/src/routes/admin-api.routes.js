@@ -12,8 +12,8 @@ const router = express.Router();
  * They should only be accessible when user is logged in to AdminJS
  */
 const requireAdminSession = (req, res, next) => {
-  // Whitelist static assets and vendor files
-  const publicPaths = ['/vendor/', '/public/', '/favicon.ico', '/assets/'];
+  // Whitelist static assets, vendor files and root path so homepage and static landing pages are accessible
+  const publicPaths = ['/', '/vendor/', '/public/', '/favicon.ico', '/assets/'];
   if (publicPaths.some(path => req.path.startsWith(path))) {
     return next();
   }
