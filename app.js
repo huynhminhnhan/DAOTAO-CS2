@@ -297,16 +297,17 @@ const startApp = async () => {
 
     // Homepage
     app.get('/', (req, res) => {
-      // If the user is not authenticated via AdminJS session, redirect to Admin login
-      // AdminJS stores session info on req.session (the buildAuthenticatedRouter uses the session store).
-      // We check for a known session property that AdminJS sets for authenticated users.
-      // If not logged in, redirect to AdminJS login page
+      // Determine AdminJS root and login URLs
+      const adminRoot = adminJs.options.rootPath || '/admin';
+      const adminLogin = `${adminRoot.replace(/\/$/, '')}/login`;
+
+      // If the user is not authenticated via AdminJS session, redirect to Admin login page
       if (!req.session || !req.session.adminUser) {
-        return res.redirect(adminJs.options.rootPath || '/admin');
+        return res.redirect(adminLogin);
       }
 
       // If user is authenticated, redirect to the AdminJS dashboard (rootPath)
-      return res.redirect(adminJs.options.rootPath || '/admin');
+      return res.redirect(adminRoot);
     });
 
     // ==========================================
