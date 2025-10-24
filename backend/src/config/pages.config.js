@@ -10,6 +10,15 @@ import { Components } from './components.js';
  * @link https://docs.adminjs.co/ui-customization/writing-your-own-components#creating-custom-pages
  */
 export const pagesConfig = {
+  // Semester Grade Summary Page
+  'semester-grade-summary': {
+    component: Components.SemesterGradeSummary,
+    icon: 'DocumentCheck',
+    label: 'Bảng điểm tổng kết',
+    handler: async (request, response, context) => {
+      return {};
+    }
+  },
   // Teacher Grade Entry Page - ONLY TX and DK scores
   // 'teacher-grade-entry': {
   //   component: Components.TeacherGradeEntry,

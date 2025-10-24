@@ -26,6 +26,7 @@ const Components = {
   StudentTranscriptComponent: componentLoader.add('StudentTranscriptComponent', path.join(__dirname, '../../../frontend/src/components/StudentRecordTranscriptComponent.jsx')),
   TeacherPermissionManagement: componentLoader.add('TeacherPermissionManagement', path.join(__dirname, '../../../frontend/src/components/TeacherPermissionManagement.jsx')),
   TeacherGradeEntry: componentLoader.add('TeacherGradeEntry', path.join(__dirname, '../../../frontend/src/components/TeacherGradeEntryComponent.jsx')),
+  SemesterGradeSummary: componentLoader.add('SemesterGradeSummary', path.join(__dirname, '../../../frontend/src/components/SemesterGradeSummaryComponent.jsx')),
   ClassDetail: componentLoader.add('ClassDetail', path.join(__dirname, '../../../frontend/src/components/ClassDetailComponent.jsx')),
   DateShowDDMMYYYY: componentLoader.add('DateShowDDMMYYYY', path.join(__dirname, '../../../frontend/src/components/DateShowDDMMYYYY.jsx')),
   DatePickerFlatpickr: componentLoader.add('DatePickerFlatpickr', path.join(__dirname, '../../../frontend/src/components/DatePickerFlatpickr.jsx')),

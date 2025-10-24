@@ -622,6 +622,18 @@ const GradeEntryPage = () => {
       };
       
       loadEnrolledStudents();
+
+      // Listen for external reload events so other actions (approve/unlock) can force a refetch
+      const onReload = () => {
+        console.log('[GradeEntryPage] reload event received - refetching enrolled students');
+        loadEnrolledStudents();
+      };
+
+      window.addEventListener('reload', onReload);
+      // Cleanup
+      return () => {
+        window.removeEventListener('reload', onReload);
+      };
     } else {
       // Reset students khi chưa chọn đủ thông tin
       setStudents([]);
@@ -866,7 +878,31 @@ const GradeEntryPage = () => {
       const result = await response.json();
       if (result.success) {
         alert('✅ Đã duyệt điểm TX/ĐK thành công!');
-        // Reload data
+        // Optimistic update: update gradeStatuses locally so UI updates immediately (same behavior as bulk)
+        setGradeStatuses(prevStatuses => {
+          const newStatuses = { ...prevStatuses };
+
+          // Find the student entry by gradeId (fallback to provided studentId)
+          const targetGradeId = gradeStatus.gradeId;
+          const foundStudentId = Object.keys(newStatuses).find(id => newStatuses[id]?.gradeId === targetGradeId) || studentId;
+
+          if (foundStudentId && newStatuses[foundStudentId]) {
+            newStatuses[foundStudentId] = {
+              ...newStatuses[foundStudentId],
+              gradeStatus: 'APPROVED_TX_DK',
+              lockStatus: {
+                txLocked: true,
+                dkLocked: true,
+                finalLocked: false
+              },
+              approvedAt: new Date().toISOString()
+            };
+          }
+
+          return newStatuses;
+        });
+
+        // Also trigger a background reload to ensure full sync with server state
         window.dispatchEvent(new Event('reload'));
       } else {
         throw new Error(result.message);

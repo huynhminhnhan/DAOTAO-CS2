@@ -20,43 +20,10 @@ const BulkEnrollmentComponent = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch classes - if inside AdminJS use admin-api to respect session and teacher assignments
-        let classesData = null;
-        try {
-          if (window && window.location && window.location.pathname && window.location.pathname.startsWith('/admin')) {
-            // admin UI: call admin-api which can infer current admin's classes
-            const classesResponse = await fetch('/admin-api/teacher-assignments', { credentials: 'include' });
-            classesData = await classesResponse.json();
-            // Support two shapes: { success: true, data: [...] } or raw array
-            let classesArray = [];
-            if (Array.isArray(classesData)) {
-              classesArray = classesData;
-            } else if (classesData && classesData.success && Array.isArray(classesData.data)) {
-              classesArray = classesData.data;
-            }
-            if (classesArray.length) {
-              const classOptions = classesArray.map(cls => ({ value: String(cls.id), label: `${cls.classCode} - ${cls.className}` }));
-              setClasses(classOptions);
-            } else {
-              console.debug('BulkEnrollmentComponent: no classes returned from admin-api/teacher-assignments', classesData);
-            }
-          } else {
-            const classesResponse = await fetch('/admin-api/student-import/classes');
-            classesData = await classesResponse.json();
-            if (classesData.success) {
-              const classOptions = classesData.data.map(cls => ({
-                value: cls.id.toString(),
-                label: `${cls.classCode} - ${cls.className}`
-              }));
-              setClasses(classOptions);
-            }
-          }
-        } catch (e) {
-          console.error('Error fetching classes (bulk enrollment):', e);
-        }
+        // We'll fetch classes per-cohort when cohort is selected (see cohort change handler)
 
-        // Fetch subjects  
-        const subjectsResponse = await fetch('/admin-api/bulk-enrollment/subjects');
+  // Fetch subjects  
+  const subjectsResponse = await fetch('/admin-api/bulk-enrollment/subjects');
         const subjectsData = await subjectsResponse.json();
         
         if (subjectsData.success) {
@@ -67,8 +34,8 @@ const BulkEnrollmentComponent = () => {
           setSubjects(subjectOptions);
         }
 
-        // Fetch cohorts
-        const cohortsResponse = await fetch('/admin-api/cohorts');
+  // Fetch cohorts
+  const cohortsResponse = await fetch('/admin-api/cohorts');
         const cohortsData = await cohortsResponse.json();
         if (cohortsData.success) {
           const cohortOptions = cohortsData.data.map(cohort => ({
@@ -78,17 +45,7 @@ const BulkEnrollmentComponent = () => {
           setCohorts(cohortOptions);
         }
 
-        // Fetch semesters
-        const semestersResponse = await fetch('/admin-api/semesters');
-        const semestersData = await semestersResponse.json();
-        if (semestersData.success) {
-          const semesterOptions = semestersData.data.map(semester => ({
-            value: semester.semesterId.toString(),
-            label: semester.displayName || `${semester.name}`,
-            cohortId: semester.cohortId.toString()
-          }));
-          setSemesters(semesterOptions);
-        }
+        // We'll fetch semesters per-cohort when cohort is selected (see cohort change handler)
 
       } catch (error) {
         console.error('Fetch data error:', error);
@@ -104,9 +61,59 @@ const BulkEnrollmentComponent = () => {
     fetchData();
   }, []);
 
+  // When cohort changes: load classes and semesters for that cohort
+  useEffect(() => {
+    const fetchClassesAndSemestersByCohort = async (cohortId) => {
+      if (!cohortId) return;
+      try {
+        // Fetch classes for the cohort
+        const classesResp = await fetch(`/admin-api/classes/by-cohort/${cohortId}`, { credentials: 'include' });
+        const classesJson = await classesResp.json();
+        if (classesJson && classesJson.success && Array.isArray(classesJson.data)) {
+          const classOptions = classesJson.data.map(cls => ({ value: cls.id.toString(), label: `${cls.classCode} - ${cls.className}` }));
+          setClasses(classOptions);
+        } else if (Array.isArray(classesJson)) {
+          const classOptions = classesJson.map(cls => ({ value: cls.id.toString(), label: `${cls.classCode} - ${cls.className}` }));
+          setClasses(classOptions);
+        } else {
+          setClasses([]);
+        }
+
+        // Fetch semesters for the cohort
+        const semResp = await fetch(`/admin-api/semesters/by-cohort/${cohortId}`, { credentials: 'include' });
+        const semJson = await semResp.json();
+        if (semJson && semJson.success) {
+          const sems = semJson.semesters || semJson.data || [];
+          const semesterOptions = sems.map(semester => ({ value: semester.semesterId.toString(), label: semester.displayName || semester.name, cohortId: semester.cohortId ? semester.cohortId.toString() : '' }));
+          setSemesters(semesterOptions);
+        } else {
+          setSemesters([]);
+        }
+
+      } catch (err) {
+        console.error('Error fetching classes or semesters by cohort:', err);
+        setClasses([]);
+        setSemesters([]);
+      }
+    };
+
+    // extract id if selectedCohort is an object
+    const cohortVal = selectedCohort && typeof selectedCohort === 'object' ? selectedCohort.value : selectedCohort;
+    if (cohortVal) {
+      // reset downstream selections
+      setSelectedSemester('');
+      setSelectedClass('');
+      setSelectedSubject('');
+      setStudents([]);
+      fetchClassesAndSemestersByCohort(cohortVal);
+    } else {
+      setClasses([]);
+      setSemesters([]);
+    }
+  }, [selectedCohort]);
+
   // Lấy danh sách sinh viên khi chọn lớp
   useEffect(() => {
-    
     if (selectedClass) {
       fetchStudentsInClass();
     } else {
@@ -266,9 +273,10 @@ const BulkEnrollmentComponent = () => {
     }
   };
 
-  // Lọc học kỳ theo cohort đã chọn
-  const filteredSemesterOptions = selectedCohort && selectedCohort.value
-    ? semesters.filter(s => s.cohortId === selectedCohort.value)
+  // Lọc học kỳ theo cohort đã chọn (supports selectedCohort as object or raw value)
+  const cohortFilterVal = selectedCohort && typeof selectedCohort === 'object' ? selectedCohort.value : selectedCohort;
+  const filteredSemesterOptions = cohortFilterVal
+    ? semesters.filter(s => String(s.cohortId) === String(cohortFilterVal))
     : semesters;
 
   if (loadingData) {
@@ -293,34 +301,14 @@ const BulkEnrollmentComponent = () => {
       <Box bg="white" border="default" borderRadius="default" p="xl" mb="xl">
         <Text variant="h3" mb="lg">📋 Thông tin đăng ký</Text>
         
+        {/* Reordered selects: Cohort -> Semester -> Class -> Subject */}
         <Box mb="lg">
-          <Text mb="sm">🏫 Chọn lớp học:</Text>
-          <Select
-            value={selectedClass}
-            onChange={(value) => setSelectedClass(value)}
-            options={[{ value: '', label: 'Chọn lớp...' }, ...classes]}
-            placeholder="Chọn lớp học"
-          />
-        </Box>
-
-        <Box mb="lg">
-          <Text mb="sm">📚 Chọn môn học:</Text>
-          <Select
-            value={selectedSubject}
-            onChange={(value) => setSelectedSubject(value)}
-            options={[{ value: '', label: 'Chọn môn học...' }, ...subjects]}
-            placeholder="Chọn môn học"
-          />
-        </Box>
-
-        <Box mb="lg">
-          <Text mb="sm">🎓 Chọn khóa:</Text>
+          <Text mb="sm">Chọn khóa:</Text>
           <Select
             value={selectedCohort}
             onChange={(value) => {
-              console.log('Cohort selected:', value);
+             
               setSelectedCohort(value);
-              setSelectedSemester(null); // Use null instead of empty string
             }}
             options={[{ value: '', label: 'Chọn khóa...' }, ...cohorts]}
             placeholder="Chọn khóa"
@@ -328,16 +316,38 @@ const BulkEnrollmentComponent = () => {
         </Box>
 
         <Box mb="lg">
-          <Text mb="sm">📅 Chọn học kỳ:</Text>
+          <Text mb="sm"> Chọn học kỳ:</Text>
           <Select
             value={selectedSemester}
             onChange={(value) => {
-              console.log('Semester selected:', value);
+             
               setSelectedSemester(value);
             }}
             options={[{ value: '', label: 'Chọn học kỳ...' }, ...filteredSemesterOptions]}
             placeholder="Chọn học kỳ"
             isDisabled={!selectedCohort}
+          />
+        </Box>
+
+        <Box mb="lg">
+          <Text mb="sm"> Chọn lớp học:</Text>
+          <Select
+            value={selectedClass}
+            onChange={(value) => setSelectedClass(value)}
+            options={[{ value: '', label: 'Chọn lớp...' }, ...classes]}
+            placeholder="Chọn lớp học"
+            isDisabled={!selectedCohort || !selectedSemester}
+          />
+        </Box>
+
+        <Box mb="lg">
+          <Text mb="sm"> Chọn môn học:</Text>
+          <Select
+            value={selectedSubject}
+            onChange={(value) => setSelectedSubject(value)}
+            options={[{ value: '', label: 'Chọn môn học...' }, ...subjects]}
+            placeholder="Chọn môn học"
+            isDisabled={!selectedClass}
           />
         </Box>
       </Box>

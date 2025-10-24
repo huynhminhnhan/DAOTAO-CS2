@@ -28,6 +28,7 @@ export const API_ENDPOINTS = {
   GRADE: {
     ENROLLED_STUDENTS: `${API_BASE_URL}/grade/enrolled-students`,
     SAVE_BULK: `${API_BASE_URL}/grade/save-bulk`,
+    SEMESTER_SUMMARY: `${API_BASE_URL}/grade/semester-summary`,
     DOWNLOAD_TXDK_TEMPLATE: `${API_BASE_URL}/grade/download-txdk-template`,
     DOWNLOAD_FINAL_EXAM_TEMPLATE: `${API_BASE_URL}/grade/download-final-exam-template`,
     STATE: {

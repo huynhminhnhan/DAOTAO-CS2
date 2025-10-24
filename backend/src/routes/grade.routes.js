@@ -8,6 +8,7 @@ import express from 'express';
 import xlsx from 'xlsx';
 import GradeApiController from '../controllers/GradeApiController.js';
 import GradeBulkController from '../controllers/GradeBulkController.js';
+import SemesterGradeSummaryController from '../controllers/SemesterGradeSummaryController.js';
 import { Grade, Enrollment, GradeHistory } from '../database/index.js';
 import { requireAdminSession, requireAdminOrTeacher } from '../middleware/session-auth.js';
 import { checkGradeEntryPermission } from '../middleware/checkTeacherPermission.js';
@@ -35,6 +36,9 @@ router.get('/teacher-classes', GradeApiController.getTeacherClasses);
 
 // API để lưu điểm số hàng loạt
 router.post('/save-bulk', GradeBulkController.saveBulk);
+
+// API lấy bảng điểm tổng kết theo học kỳ
+router.get('/semester-summary', SemesterGradeSummaryController.getSemesterSummary);
 
 // API tải template Excel cho import điểm TX/ĐK
 router.get('/download-txdk-template', (req, res) => {

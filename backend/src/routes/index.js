@@ -116,6 +116,11 @@ export const setupRoutes = async (app) => {
   app.use('/admin-api', subjectsRoutes);
   console.log('✅ Subjects routes loaded (session-based)');
 
+  // Semester routes
+  const semesterRoutes = (await import('./semester.routes.js')).default;
+  app.use('/admin-api/semesters', semesterRoutes);
+  console.log('✅ Semester routes loaded (session-based)');
+
   // ==========================================
   // 8. TRANSCRIPT ROUTES (Session-based)
   // ==========================================
