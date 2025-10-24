@@ -57,14 +57,19 @@ const startApp = async () => {
     });
 
     // Comment out app-level session config as AdminJS will handle it
+    // Use environment variables for secrets in production
+    const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-session-secret';
+    const COOKIE_PASSWORD = process.env.COOKIE_PASSWORD || 'dev-cookie-password';
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'prod';
+
     app.use(session({
-      secret: 'your-session-secret-key-here',
+      secret: SESSION_SECRET,
       resave: false,
       saveUninitialized: false,
       store: sessionStore,
       cookie: {
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        secure: false, // Set to true in production with HTTPS
+        secure: isProduction, // secure cookies in production
         httpOnly: true
       }
     }));
@@ -198,15 +203,15 @@ const startApp = async () => {
         }
       },
       cookieName: 'adminjs',
-      cookiePassword: 'your-cookie-secret-here',
+      cookiePassword: COOKIE_PASSWORD,
       sessionOptions: {
         resave: false,
         saveUninitialized: false,
-        secret: 'your-session-secret-key-here',
+        secret: SESSION_SECRET,
         store: sessionStore,
         cookie: {
           maxAge: 24 * 60 * 60 * 1000,
-          secure: false,
+          secure: isProduction,
           httpOnly: true
         }
       }
