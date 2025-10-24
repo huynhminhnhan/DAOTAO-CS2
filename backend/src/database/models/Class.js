@@ -120,7 +120,7 @@ const Class = sequelize.define('Class', {
     comment: 'Ngày cập nhật'
   }
 }, {
-  tableName: 'classes',
+  tableName: 'Classes',
   timestamps: true,
   paranoid: false,
   comment: 'Bảng lớp học cố định suốt khóa'
