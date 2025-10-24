@@ -19,9 +19,57 @@ const StudentImportService = {
     };
 
     const mappedData = {};
+    // helper: normalize gender values coming from Excel (supports Vietnamese/English variants)
+    const normalizeGender = (raw) => {
+      if (raw === undefined || raw === null) return undefined;
+      const s = String(raw).trim().toLowerCase();
+      if (!s) return undefined;
+      // Vietnamese and English common values
+      if (['nam','Nam', 'n', 'male', 'm'].includes(s)) return 'male';
+      if (['nữ','Nữ', 'nu', 'female', 'f'].includes(s) || s === 'nữ') return 'female';
+      // sometimes Excel may have 'Male'/'Female' with capital letters or localized words
+      if (s.startsWith('m') && s.length <= 2) return 'male';
+      if (s.startsWith('f') && s.length <= 2) return 'female';
+      // fallback: if it's already one of the expected enum values
+      if (['male', 'female', 'other'].includes(s)) return s;
+      return 'other';
+    };
+
+    // helper: normalize date to YYYY-MM-DD if possible
+    const normalizeDate = (raw) => {
+      if (raw === undefined || raw === null || raw === '') return undefined;
+      // If it's already a Date object
+      if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+        return raw.toISOString().slice(0, 10);
+      }
+      // Try parsing as date string
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString().slice(0, 10);
+      }
+      // If looks like DD/MM/YYYY or DD-MM-YYYY, convert
+      const m = String(raw).trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (m) {
+        const dd = m[1].padStart(2, '0');
+        const mm = m[2].padStart(2, '0');
+        const yyyy = m[3];
+        return `${yyyy}-${mm}-${dd}`;
+      }
+      return undefined;
+    };
+
     for (const [excelField, dbField] of Object.entries(fieldMapping)) {
-      if (excelRow[excelField] !== undefined && excelRow[excelField] !== null && excelRow[excelField] !== '') {
-        mappedData[dbField] = excelRow[excelField];
+      const raw = excelRow[excelField];
+      if (raw === undefined || raw === null || raw === '') continue;
+
+      if (dbField === 'gender') {
+        const g = normalizeGender(raw);
+        if (g !== undefined) mappedData[dbField] = g;
+      } else if (dbField === 'dateOfBirth') {
+        const d = normalizeDate(raw);
+        if (d !== undefined) mappedData[dbField] = d;
+      } else {
+        mappedData[dbField] = raw;
       }
     }
 
