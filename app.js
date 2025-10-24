@@ -316,43 +316,16 @@ const startApp = async () => {
     const { setupRoutes } = await import('./backend/src/routes/index.js');
     await setupRoutes(app);
 
+    // When deployed on platforms (Railway, Heroku, etc.) do NOT bind to an
+    // explicit external/public IP from env (some platforms expose that IP but
+    // it is not available inside the container). Instead bind only to PORT and
+    // let Node default to 0.0.0.0 (all interfaces) so the platform router can
+    // reach the process. If you previously set HOST env to a public IP, unset
+    // it or remove it from Railway variables.
     const PORT = process.env.PORT || 3000;
-    const HOST = process.env.HOST || 'localhost';
 
-    const server = app.listen(PORT, HOST, () => {
-      console.log('');
-      console.log('🎉 ================================');
-      console.log('   SERVER STARTED SUCCESSFULLY!');
-      console.log('🎉 ================================');
-      console.log(`   📍 Homepage: http://${HOST}:${PORT}`);
-      console.log(`   🛠️  Admin Panel: http://${HOST}:${PORT}/admin`);
-      console.log(`   🔌 API Health: http://${HOST}:${PORT}/api/health`);
-      console.log('');
-      console.log('✅ All systems operational!');
-      console.log('   - Database synchronized');
-      console.log('   - Sample data created'); 
-      console.log('   - AdminJS configured with auto-calculation');
-      console.log('   - Security middleware active');
-      console.log('   - Modular architecture (AdminJS Official Template)');
-      console.log('   - No body-parser conflicts');
-      console.log('');
-      console.log('🏗️ Architecture:');
-      console.log('   - src/config/ - AdminJS & Server configurations');
-      console.log('   - src/resources/ - Individual resource configs');
-      console.log('   - src/backend/ - Database, middleware, controllers');
-      console.log('   - Follows AdminJS official template structure');
-      console.log('');
-      console.log('🔐 Admin Login:');
-      console.log('   Email: admin@university.edu.vn');
-      console.log('   Password: 123456');
-      console.log('');
-      console.log('📊 Features:');
-      console.log('   - Auto calculate grades: TX*40% + DK*60% = TBKT');
-      console.log('   - Auto calculate GPA: TBKT*40% + Final*60% = TBMH');
-      console.log('   - Auto assign letter grades (A, B+, B, C+, C, D+, D, F)');
-      console.log('   - Role-based access control');
-      console.log('   - Vietnamese localization');
-      console.log('');
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 Server is running (listening on port ${PORT})`);
     });
 
     // Graceful shutdown
