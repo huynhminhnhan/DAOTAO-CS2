@@ -82,8 +82,19 @@ const StudentImportService = {
       throw new Error('Thiếu thông tin lớp hoặc danh sách sinh viên');
     }
 
+    // Coerce classId to integer and verify the class exists to avoid FK errors
+    const parsedClassId = Number(classId);
+    if (!Number.isInteger(parsedClassId) || parsedClassId <= 0) {
+      throw new Error('ID lớp không hợp lệ');
+    }
+
+    const targetClass = await Class.findByPk(parsedClassId);
+    if (!targetClass) {
+      throw new Error(`Lớp có id=${parsedClassId} không tồn tại`);
+    }
+
     // Map Excel fields to database fields
-    const mappedStudents = students.map(s => this.mapExcelFieldsToDb(s));
+  const mappedStudents = students.map(s => this.mapExcelFieldsToDb(s));
 
     // Validate required fields
     const results = [];
@@ -100,7 +111,7 @@ const StudentImportService = {
 
         const [student, created] = await Student.findOrCreate({
           where: { studentCode: s.studentCode },
-          defaults: { ...s, classId, status: 'active' }
+          defaults: { ...s, classId: parsedClassId, status: 'active' }
         });
         
         results.push({ 
