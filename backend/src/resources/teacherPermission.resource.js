@@ -32,7 +32,7 @@ const teacherPermissionResource = {
       // Phạm vi quyền
       classId: {
         isVisible: { list: true, show: true, edit: true, filter: true },
-        reference: 'classes', // ⚠️ AdminJS resource ID là 'classes' không phải 'Class'
+        reference: 'Classes', 
         description: 'Để trống = Tất cả các lớp'
       },
 

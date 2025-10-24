@@ -33,7 +33,7 @@ const EnrollmentResource = {
         position: 3,
         isRequired: true,
         type: 'reference',
-        reference: 'classes'
+        reference: 'Classes'
       },
       subjectId: { 
         position: 4,

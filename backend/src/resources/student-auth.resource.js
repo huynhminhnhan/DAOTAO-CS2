@@ -115,7 +115,7 @@ const StudentResourceWithAuth = {
     
     properties: {
       'classId': {
-        reference: 'classes',
+        reference: 'Classes',
         isTitle: false
       },
       'userId': {
