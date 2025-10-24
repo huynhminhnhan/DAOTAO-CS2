@@ -300,9 +300,13 @@ const startApp = async () => {
       // If the user is not authenticated via AdminJS session, redirect to Admin login
       // AdminJS stores session info on req.session (the buildAuthenticatedRouter uses the session store).
       // We check for a known session property that AdminJS sets for authenticated users.
+      // If not logged in, redirect to AdminJS login page
       if (!req.session || !req.session.adminUser) {
-        return res.redirect('/admin');
+        return res.redirect(adminJs.options.rootPath || '/admin');
       }
+
+      // If user is authenticated, redirect to the AdminJS dashboard (rootPath)
+      return res.redirect(adminJs.options.rootPath || '/admin');
     });
 
     // ==========================================
