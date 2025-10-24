@@ -48,7 +48,7 @@ const Student = sequelize.define('Student', {
     allowNull: false,
     comment: 'ID lớp cố định suốt khóa học',
     references: {
-      model: 'classes',
+      model: 'Classes',
       key: 'id'
     },
     onUpdate: 'CASCADE',
