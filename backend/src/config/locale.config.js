@@ -84,7 +84,7 @@ export const localeConfig = {
             lastLogin: 'Lần đăng nhập cuối',
           }
         },
-        classes: {
+        Classes: {
           name: 'Lớp học',
           properties: {
           className: 'Tên lớp',
