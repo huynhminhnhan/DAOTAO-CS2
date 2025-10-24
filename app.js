@@ -44,7 +44,7 @@ const startApp = async () => {
     console.log('✅ Database connection established successfully');
     
     // Đồng bộ database (không force để giữ dữ liệu)
-     await sequelize.sync();
+    // await sequelize.sync();
     //await syncDatabase(true); // Tạo dữ liệu mẫu
     console.log('✅ Database synchronized successfully');
 
