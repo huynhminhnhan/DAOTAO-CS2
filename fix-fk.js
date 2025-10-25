@@ -59,10 +59,10 @@ async function fixForeignKeys() {
     await sequelize.query(`
       ALTER TABLE Enrollments
       ADD CONSTRAINT enrollments_ibfk_2
-      FOREIGN KEY (class_id) REFERENCES classes(id)
+      FOREIGN KEY (class_id) REFERENCES Classes(id)
       ON DELETE CASCADE ON UPDATE CASCADE
     `);
-    console.log('✅ Added FK: enrollments_ibfk_2 (class_id -> classes.id)');
+    console.log('✅ Added FK: enrollments_ibfk_2 (class_id -> Classes.id)');
 
     // Add subject_id FK
     await sequelize.query(`
