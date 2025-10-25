@@ -24,7 +24,12 @@ const TeacherGradeEntryResource = {
     listProperties: [],
     showProperties: [],
     editProperties: [],
-    filterProperties: [],
+    filterProperties: [], // Để array trống thay vì false
+    
+    // Ẩn filter bar hoàn toàn
+    filters: {
+      visible: false
+    },
     
     // Actions configuration
     actions: {
@@ -43,6 +48,7 @@ const TeacherGradeEntryResource = {
       edit: { isAccessible: false },
       delete: { isAccessible: false },
       bulkDelete: { isAccessible: false }
+
     }
   }
 };

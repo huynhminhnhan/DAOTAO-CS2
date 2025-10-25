@@ -11,11 +11,14 @@ const GradeStateTransition = sequelize.define('GradeStateTransition', {
   gradeId: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    comment: 'ID của grade record',
     references: {
-      model: 'Grades',
-      key: 'gradeId'
+      // reference the grades table primary key `id`
+      model: 'grades',
+      key: 'id'
     },
-    comment: 'ID của grade record'
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
   },
   fromState: {
     type: DataTypes.STRING(50),
@@ -31,9 +34,11 @@ const GradeStateTransition = sequelize.define('GradeStateTransition', {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'Users',
+      model: 'users',
       key: 'id'
     },
+    onUpdate: 'CASCADE',
+    onDelete: 'NO ACTION',
     comment: 'User thực hiện chuyển trạng thái'
   },
   triggeredAt: {

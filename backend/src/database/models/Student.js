@@ -26,6 +26,11 @@ const Student = sequelize.define('Student', {
       len: [2, 100]
     }
   },
+  middleName: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    comment: 'Tên đệm (nullable)'
+  },
   email: {
     type: DataTypes.STRING(100),
     allowNull: true,

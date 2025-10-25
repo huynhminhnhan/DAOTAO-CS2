@@ -29,7 +29,7 @@ const Teacher = sequelize.define('Teacher', {
   },
   email: {
     type: DataTypes.STRING(100),
-    allowNull: false,
+    allowNull: true,
     unique: true,
     comment: 'Email giáo viên',
     validate: {

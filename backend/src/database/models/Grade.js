@@ -128,6 +128,28 @@ const Grade = sequelize.define('Grade', {
       max: 10
     }
   },
+  attempt_number: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 1,
+    comment: 'Lần thứ mấy (1=lần đầu, 2=thi lại, 3=học lại lần 1...)'
+  },
+  is_retake: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    comment: 'Có phải là điểm từ thi lại/học lại không'
+  },
+  retake_type: {
+    type: DataTypes.ENUM('RETAKE_EXAM', 'RETAKE_COURSE'),
+    allowNull: true,
+    comment: 'Loại thi lại: RETAKE_EXAM (thi lại), RETAKE_COURSE (học lại)'
+  },
+  retake_reason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'Lý do phải thi lại/học lại'
+  },
   letterGrade: {
     type: DataTypes.STRING(20),
     allowNull: true,

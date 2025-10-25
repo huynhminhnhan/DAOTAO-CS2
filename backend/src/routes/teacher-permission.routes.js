@@ -144,7 +144,7 @@ router.get('/my-classes', checkIsTeacher, async (req, res) => {
       where: {
         id: classIds
       },
-      attributes: ['id', 'className', 'classCode', 'academicYear', 'semester', 'cohortId'],
+      attributes: ['id', 'className', 'classCode', 'semester', 'cohortId'],
       order: [['className', 'ASC']]
     });
     
@@ -154,7 +154,6 @@ router.get('/my-classes', checkIsTeacher, async (req, res) => {
         id: c.id,
         className: c.className,
         classCode: c.classCode,
-        academicYear: c.academicYear,
         semester: c.semester,
         cohortId: c.cohortId
       }))
@@ -368,7 +367,7 @@ router.get('/my-classes/:cohortId', async (req, res) => {
         id: classIds,
         cohortId: cohortId
       },
-      attributes: ['id', 'className', 'classCode', 'academicYear', 'semester', 'cohortId'],
+      attributes: ['id', 'className', 'classCode', 'cohortId'],
       order: [['className', 'ASC']]
     });
     
@@ -378,8 +377,6 @@ router.get('/my-classes/:cohortId', async (req, res) => {
         id: c.id,
         className: c.className,
         classCode: c.classCode,
-        academicYear: c.academicYear,
-        semester: c.semester,
         cohortId: c.cohortId
       }))
     });

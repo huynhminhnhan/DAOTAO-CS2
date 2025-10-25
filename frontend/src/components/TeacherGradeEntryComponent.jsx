@@ -780,8 +780,6 @@ const TeacherGradeEntry = () => {
           tbmhScore: null, // ⭐ Chỉ tính khi có điểm thi
           isRetake: false,
           notes: gradeInfo.ghiChu || '',
-          semester: classInfo.semester || 'HK1',
-          academicYear: classInfo.academicYear || '2024-25',
           hasExistingGrade: gradeInfo.hasExistingGrade || false,
           gradeId: gradeInfo.gradeId || null
         };

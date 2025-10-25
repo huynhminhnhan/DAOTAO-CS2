@@ -163,7 +163,6 @@ const ClassResource = {
           if (currentAdmin?.role === 'teacher') {
             const allowedClassIds = await getTeacherManagedClassIds(currentAdmin.id);
             
-            console.log('[ClassResource] Teacher allowed class IDs:', allowedClassIds);
             
             // Nếu không có quyền với tất cả lớp, thêm filter id
             if (allowedClassIds !== 'all') {

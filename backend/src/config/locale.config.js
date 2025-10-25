@@ -68,6 +68,8 @@ export const localeConfig = {
             email: 'Email',
             classId: 'Lớp',
             gender: 'Giới tính',
+            status: 'Trạng thái',
+            createdAt: 'Ngày tạo',
             viewTranscript: 'Xem bảng điểm'
           }
         },

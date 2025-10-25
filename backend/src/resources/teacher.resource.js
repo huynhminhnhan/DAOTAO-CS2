@@ -46,7 +46,7 @@ const TeacherResource = {
         description: 'Họ và tên đầy đủ của giáo viên'
       },
       email: { 
-        isRequired: true, 
+        isRequired: false, 
         type: 'email',
         position: 3,
         description: 'Email liên hệ'
@@ -62,6 +62,7 @@ const TeacherResource = {
       degree: {
         type: 'select',
         availableValues: [
+          { value: 'Kỹ sư', label: 'Kỹ sư' },
           { value: 'Cử nhân', label: 'Cử nhân' },
           { value: 'Thạc sĩ', label: 'Thạc sĩ' },
           { value: 'Tiến sĩ', label: 'Tiến sĩ' },
