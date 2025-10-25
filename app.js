@@ -26,7 +26,7 @@ const startApp = async () => {
     await sequelize.authenticate();
     
     // Đồng bộ database (không force để giữ dữ liệu)
-    await sequelize.sync();
+    //await sequelize.sync();
     //await syncDatabase(true); // Tạo dữ liệu mẫu
     // Create Express app with middleware
     const app = createExpressApp();
