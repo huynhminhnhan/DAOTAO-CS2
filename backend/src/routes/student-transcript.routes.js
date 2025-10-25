@@ -9,8 +9,6 @@ import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from '../mid
 
 const router = express.Router();
 
-console.log('✅ Student transcript routes protected');
-
 // ✅ SECURITY FIX: Admin and teacher can list all students
 router.get('/students', 
   requireAdminSession,

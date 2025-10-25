@@ -20,7 +20,6 @@ const router = express.Router();
 router.use(requireAdminSession);
 router.use(requireAdminOrTeacher);
 
-console.log('✅ Grade routes protected with AdminJS session + role check');
 
 // API lấy sinh viên đã đăng ký môn học cụ thể (ĐÚNG LOGIC NGHIỆP VỤ)
 router.get('/enrolled-students', GradeApiController.getEnrolledStudents);

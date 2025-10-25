@@ -1,18 +1,3 @@
-/**
- * Student Management System - Main Application (AdminJS v7 + ESM)
- * Hệ thống Quản lý Điểm Sinh viên theo chuẩn AdminJS v7+ và Enterprise Architecture
- * 
- * Features:
- * - ✅ AdminJS v7.8+ với ESM support
- * - ✅ Enterprise Architecture: MVC, Factory, Service Layer, Resource Pattern
- * - ✅ Tự động tính điểm: TX → DK → TBKT → Final → TBMH → Letter Grade
- * - ✅ Phân quyền đầy đủ: Admin, Teacher, Student
- * - ✅ Bảo mật: JWT, Bcrypt, Rate limiting, Input sanitization
- * - ✅ Vietnamese localization (client-side)
- * - ✅ 7 bảng quản lý: Users, Students, Subjects, Classes, Grades, History, Notifications
- * - ✅ Modular Architecture following AdminJS v7 Official Template
- */
-
 import express from 'express';
 import AdminJSExpress from '@adminjs/express';
 import { Database, Resource } from '@adminjs/sequelize';
@@ -36,18 +21,13 @@ const SessionStore = SequelizeStore(session.Store);
 
 // Hàm khởi động ứng dụng
 const startApp = async () => {
-  try {
-    console.log('🚀 Starting Student Management System...');
-    
+  try {    
     // Test kết nối database
     await sequelize.authenticate();
-    console.log('✅ Database connection established successfully');
     
     // Đồng bộ database (không force để giữ dữ liệu)
-    // await sequelize.sync();
+    await sequelize.sync();
     //await syncDatabase(true); // Tạo dữ liệu mẫu
-    console.log('✅ Database synchronized successfully');
-
     // Create Express app with middleware
     const app = createExpressApp();
 
@@ -86,7 +66,6 @@ const startApp = async () => {
 
     // Serve static files for custom CSS from frontend/public
     const frontendPublicPath = path.join(process.cwd(), 'frontend', 'public');
-    console.log(`📁 Serving static files from: ${frontendPublicPath}`);
     
     // Static file options with proper caching and mobile support
     const staticOptions = {
@@ -120,7 +99,7 @@ const startApp = async () => {
     }
 
     // AdminJS authentication
-    const adminRouter = AdminJSExpress.buildAuthenticatedRouter(adminJs, {
+    const adminAuthOptions = {
       authenticate: async (email, password) => {
         try {
           // Allow admin and teacher accounts to authenticate to AdminJS.
@@ -204,18 +183,22 @@ const startApp = async () => {
       },
       cookieName: 'adminjs',
       cookiePassword: COOKIE_PASSWORD,
-      sessionOptions: {
-        resave: false,
-        saveUninitialized: false,
-        secret: SESSION_SECRET,
-        store: sessionStore,
-        cookie: {
-          maxAge: 24 * 60 * 60 * 1000,
-          secure: isProduction,
-          httpOnly: true
-        }
+    };
+
+    // Pass sessionOptions as the 4th argument per AdminJS API (not nested inside auth)
+    const adminSessionOptions = {
+      resave: false,
+      saveUninitialized: false,
+      store: sessionStore,
+      // cookie secret is set from auth.cookiePassword inside AdminJS
+      cookie: {
+        maxAge: 24 * 60 * 60 * 1000,
+        secure: isProduction,
+        httpOnly: true
       }
-    });
+    };
+
+    const adminRouter = AdminJSExpress.buildAuthenticatedRouter(adminJs, adminAuthOptions, undefined, adminSessionOptions);
 
     // Mount AdminJS FIRST
     app.use(adminJs.options.rootPath, adminRouter);

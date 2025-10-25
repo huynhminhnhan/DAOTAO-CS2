@@ -11,8 +11,6 @@ const router = express.Router();
 router.use(requireAdminSession);
 router.use(requireAdmin);
 
-console.log('✅ Student import routes protected - Admin only (session-based)');
-
 // Cấu hình multer để xử lý upload file
 const upload = multer({ 
   storage: multer.memoryStorage(),

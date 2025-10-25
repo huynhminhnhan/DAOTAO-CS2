@@ -16,7 +16,6 @@ router.use(requireAdminSession);
 // Apply role-based authorization (only admin and teacher)
 router.use(requireAdminOrTeacher);
 
-console.log('✅ Grade update routes protected with AdminJS session + role check');
 
 /**
  * PUT /api/grades/update-retake-exam

@@ -12,7 +12,6 @@ const router = express.Router();
 // They work with or without authentication
 router.use(optionalSession);
 
-console.log('✅ Subjects routes configured with optional auth (public for dropdowns)');
 
 // GET /api/subjects - Lấy danh sách tất cả môn học
 router.get('/subjects', async (req, res) => {

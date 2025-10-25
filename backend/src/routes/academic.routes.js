@@ -12,8 +12,6 @@ const router = express.Router();
 // Consider making them session-based if security is a concern
 router.use(optionalSession);
 
-console.log('✅ Academic routes configured with optional auth (public for dropdowns)');
-
 // GET /api/cohorts - Lấy danh sách tất cả khóa học
 router.get('/cohorts', AcademicController.listCohorts);
 

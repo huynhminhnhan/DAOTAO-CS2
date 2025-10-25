@@ -13,7 +13,6 @@ const router = express.Router();
 router.use(requireAdminSession);
 router.use(requireAdminOrTeacher);
 
-console.log('✅ Retake management routes protected - Admin/Teacher only');
 
 // Phân tích trạng thái điểm
 router.get('/analyze/:gradeId', RetakeController.analyzeGrade);

@@ -13,8 +13,6 @@ const router = express.Router();
 router.use(requireAdminSession);
 router.use(requireAdminOrTeacher);
 
-console.log('✅ Bulk enrollment routes protected - Admin/Teacher only (session-based)');
-
 // GET /api/bulk-enrollment/subjects - Lấy danh sách môn học
 router.get('/subjects', BulkEnrollmentController.getSubjects);
 

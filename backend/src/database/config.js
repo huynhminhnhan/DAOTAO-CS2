@@ -49,8 +49,6 @@ if (databaseUrl) {
   password = process.env.DB_PASS || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || '';
 }
 
-// Log which host is being used (avoid printing passwords)
-console.log('DB config: host=' + host + ' port=' + port + ' db=' + database + ' user=' + (username ? username : '[none]'));
 
 const sequelize = new Sequelize(database, username, password, {
   host,

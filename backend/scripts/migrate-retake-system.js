@@ -25,7 +25,6 @@ const runMigration = async () => {
     // 1. Test database connection
     console.log('\n1️⃣ Testing database connection...');
     await sequelize.authenticate();
-    console.log('✅ Database connection established successfully');
     
     // 2. Load and execute migration
     console.log('\n2️⃣ Executing migration...');

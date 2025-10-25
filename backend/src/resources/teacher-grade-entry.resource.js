@@ -8,8 +8,6 @@
 import { TeacherPermission } from '../database/index.js';
 import { Components } from '../config/components.js';
 
-console.log('🎯 Loading TeacherGradeEntryResource with isAccessible control...');
-
 const TeacherGradeEntryResource = {
   resource: TeacherPermission,
   

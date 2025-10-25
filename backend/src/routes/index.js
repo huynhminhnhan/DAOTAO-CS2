@@ -15,7 +15,6 @@
  * @param {Express.Application} app - Express app instance
  */
 export const setupRoutes = async (app) => {
-  console.log('📋 Setting up routes...');
 
   // ==========================================
   // 1. PUBLIC ROUTES (No authentication)
@@ -41,7 +40,6 @@ export const setupRoutes = async (app) => {
   
   const adminApiRoutes = (await import('./admin-api.routes.js')).default;
   app.use('/', adminApiRoutes);
-  console.log('✅ Admin API routes loaded (session-based)');
 
   // ==========================================
   // 3. STUDENT MANAGEMENT ROUTES (Session-based)
@@ -49,7 +47,6 @@ export const setupRoutes = async (app) => {
   
   const studentImportRoutes = (await import('./student-import.routes.js')).default;
   app.use('/admin-api/student-import', studentImportRoutes);
-  console.log('✅ Student import routes loaded (session-based)');
 
   // ==========================================
   // 4. GRADE MANAGEMENT ROUTES (Session-based)
@@ -58,22 +55,18 @@ export const setupRoutes = async (app) => {
   // Main grade routes
   const gradeRoutes = (await import('./grade.routes.js')).default;
   app.use('/admin-api/grade', gradeRoutes);
-  console.log('✅ Grade routes loaded (session-based)');
 
   // Grade update routes (retake exam/course scoring)
   const gradeUpdateRoutes = (await import('./grade-update.routes.js')).default;
   app.use('/admin-api/grades', gradeUpdateRoutes);
-  console.log('✅ Grade update routes loaded (session-based)');
 
   // Grade history routes (list/detail/revert)
   const gradeHistoryRoutes = (await import('./grade-history.routes.js')).default;
   app.use('/admin-api', gradeHistoryRoutes);
-  console.log('✅ Grade history routes loaded (session-based)');
 
   // Grade state management routes (submit/approve/finalize workflow)
   const gradeStateRoutes = (await import('./grade-state.routes.js')).default;
   app.use('/admin-api/grade/state', gradeStateRoutes);
-  console.log('✅ Grade state management routes loaded (session-based)');
 
   // ==========================================
   // 5. ENROLLMENT ROUTES (Session-based)
@@ -81,7 +74,6 @@ export const setupRoutes = async (app) => {
   
   const bulkEnrollmentRoutes = (await import('./bulk-enrollment.routes.js')).default;
   app.use('/admin-api/bulk-enrollment', bulkEnrollmentRoutes);
-  console.log('✅ Bulk enrollment routes loaded (session-based)');
 
   // ==========================================
   // 6. RETAKE SYSTEM ROUTES (Session-based)
@@ -90,17 +82,14 @@ export const setupRoutes = async (app) => {
   // Legacy retake routes (if still needed)
   const retakeRoutes = (await import('./retake.routes.js')).default;
   app.use('/admin-api/retake', retakeRoutes);
-  console.log('✅ Retake routes loaded (session-based)');
 
   // New comprehensive retake management
   const retakeManagementRoutes = (await import('./retake-management.routes.js')).default;
   app.use('/admin-api/retake-management', retakeManagementRoutes);
-  console.log('✅ Retake management routes loaded (session-based)');
 
   // Retake scoring routes
   const retakeScoringRoutes = (await import('./retake-scoring.routes.js')).default;
   app.use('/admin-api/retake-scoring', retakeScoringRoutes);
-  console.log('✅ Retake scoring routes loaded (session-based)');
 
   // ==========================================
   // 7. ACADEMIC DATA ROUTES (Session-based)
@@ -109,17 +98,14 @@ export const setupRoutes = async (app) => {
   // Academic routes (cohorts, semesters)
   const academicRoutes = (await import('./academic.routes.js')).default;
   app.use('/admin-api', academicRoutes);
-  console.log('✅ Academic routes loaded (session-based)');
 
   // Subjects routes
   const subjectsRoutes = (await import('./subjects.routes.js')).default;
   app.use('/admin-api', subjectsRoutes);
-  console.log('✅ Subjects routes loaded (session-based)');
 
   // Semester routes
   const semesterRoutes = (await import('./semester.routes.js')).default;
   app.use('/admin-api/semesters', semesterRoutes);
-  console.log('✅ Semester routes loaded (session-based)');
 
   // ==========================================
   // 8. TRANSCRIPT ROUTES (Session-based)
@@ -127,7 +113,6 @@ export const setupRoutes = async (app) => {
   
   const studentTranscriptRoutes = (await import('./student-transcript.routes.js')).default;
   app.use('/admin-api', studentTranscriptRoutes);
-  console.log('✅ Student transcript routes loaded (session-based)');
 
   // ==========================================
   // 9. TEACHER PERMISSION ROUTES (Session-based)
@@ -135,7 +120,6 @@ export const setupRoutes = async (app) => {
   
   const teacherPermissionRoutes = (await import('./teacher-permission.routes.js')).default;
   app.use('/admin-api/teacher-permissions', teacherPermissionRoutes);
-  console.log('✅ Teacher permission routes loaded (session-based)');
 
   // ==========================================
   // 11. ERROR HANDLERS
@@ -159,7 +143,6 @@ export const setupRoutes = async (app) => {
     });
   });
 
-  console.log('✅ All routes configured successfully');
 };
 
 /**

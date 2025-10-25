@@ -4,7 +4,6 @@ import { requireAdminSession, requireAdminOrTeacher, requireAdmin } from '../mid
 
 const router = express.Router();
 
-console.log('✅ Grade history routes protected with different permission levels');
 
 // ✅ SECURITY FIX: List and detail - teacher can view
 router.get('/api/grade-history', 

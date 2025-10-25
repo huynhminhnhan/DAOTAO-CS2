@@ -14,8 +14,6 @@ const router = express.Router();
 router.use(requireAdminSession);
 router.use(requireAdminOrTeacher);
 
-console.log('✅ Retake scoring routes protected - Admin/Teacher only');
-
 /**
  * GET /api/retake/detailed-history
  * Lấy lịch sử chi tiết tất cả các lần thi/học với điểm số
