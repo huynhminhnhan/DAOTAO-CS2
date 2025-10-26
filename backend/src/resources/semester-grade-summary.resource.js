@@ -1,45 +1,49 @@
 /**
- * Teacher Grade Entry Resource - Navigation Control via Resource
- * 
+ * Semester Grade Summary Resource - Navigation Control via Resource
+ *
  * ⚠️ Solution: Dùng TeacherPermission model (đã tồn tại) nhưng custom navigation
- * để tạo menu item riêng cho teacher grade entry, với isAccessible control
+ * để tạo menu item riêng cho semester grade summary, với isAccessible control
  */
 
 import { TeacherPermission } from '../database/index.js';
 import { Components } from '../config/components.js';
 
-const TeacherGradeEntryResource = {
+const SemesterGradeSummaryResource = {
   resource: TeacherPermission,
-  
+
   options: {
-    id: 'teacher-grade-entry', // ID khác với teacherPermission
-    
-    // Navigation configuration - Tạo menu item mới
-    navigation: {
-      name: 'Nhập điểm TX & ĐK',
-      icon: 'Edit'
+    id: 'semester-grade-summary', // ID khác với teacherPermission
+    parent: {
+      name: 'Học Tập',
+      icon: 'Book'
     },
-    
+    // // Navigation configuration - Tạo menu item mới
+    // navigation: {
+    //   name: 'Tổng kết điểm học kỳ',
+    //   icon: 'BarChart'
+    // },
+
     // Hide all properties - không hiển thị gì trong list
     listProperties: [],
     showProperties: [],
     editProperties: [],
     filterProperties: [], // Để array trống thay vì false
-    
+
     // Ẩn filter bar hoàn toàn
     filters: {
       visible: false
     },
-     showFilter: false,
+
     // Actions configuration
     actions: {
       list: {
         // ✅ Control navigation visibility - CHỈ teacher mới thấy
         isAccessible: ({ currentAdmin }) => {
-          return currentAdmin && currentAdmin.role === 'teacher';
+          return currentAdmin && currentAdmin.role === 'admin';
         },
-        // ✅ Thay trang list bằng TeacherGradeEntry component
-        component: Components.TeacherGradeEntry,
+        // ✅ Thay trang list bằng SemesterGradeSummary component
+        component: Components.SemesterGradeSummary,
+         showFilter: false, // ✅ Ẩn filter
         // Không cần handler redirect nữa vì đã dùng custom component
       },
       // Hide tất cả actions khác
@@ -48,9 +52,8 @@ const TeacherGradeEntryResource = {
       edit: { isAccessible: false },
       delete: { isAccessible: false },
       bulkDelete: { isAccessible: false }
-
     }
   }
 };
 
-export default TeacherGradeEntryResource;
+export default SemesterGradeSummaryResource;

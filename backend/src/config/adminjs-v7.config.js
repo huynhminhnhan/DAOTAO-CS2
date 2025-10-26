@@ -37,6 +37,7 @@ import SemesterResource from '../resources/semester.resource.js';
 import GradeHistoryResource from '../resources/grade-history.resource.js';
 import TeacherPermissionResource from '../resources/teacherPermission.resource.js';
 import TeacherGradeEntryResource from '../resources/teacher-grade-entry.resource.js'; // ⭐ Dummy resource để control navigation
+import SemesterGradeSummaryResource from '../resources/semester-grade-summary.resource.js'; // ⭐ Dummy resource để control navigation
 
 export const createAdminJSConfig = () => {
   const isDevelopment = process.env.NODE_ENV === 'development';
@@ -63,6 +64,7 @@ export const createAdminJSConfig = () => {
       GradeHistoryResource,
       TeacherPermissionResource, // ⭐ Module mới - Gán quyền nhập điểm
       TeacherGradeEntryResource, // ⭐ Dummy resource để control navigation cho teacher-grade-entry page
+      SemesterGradeSummaryResource, // ⭐ Dummy resource để control navigation cho semester-grade-summary page
     ],
     // Custom pages
     pages: pagesConfig,

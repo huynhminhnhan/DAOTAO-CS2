@@ -13,11 +13,14 @@ const EnrollmentResource = {
       name: '🏫 Quản lý Lớp học',
       icon: 'BookOpen'
     },
-    
+  
   listProperties: ['enrollmentId', 'studentId', 'classId', 'subjectId', 'cohortId', 'semesterId', 'status'],
   editProperties: ['studentId', 'classId', 'subjectId', 'cohortId', 'semesterId', 'attempt', 'status', 'note'],
   filterProperties: ['classId', 'subjectId', 'cohortId', 'semesterId', 'status'],
-    
+  filters: {
+      visible: false
+    },
+  showFilter: false,
     properties: {
       enrollmentId: {
         position: 1,
@@ -70,6 +73,8 @@ const EnrollmentResource = {
     actions: {
       list: {
         isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin',
+        component: Components.BulkEnrollmentComponent,
+        showFilter: false, // ✅ Ẩn filter
         before: async (request, context) => {
           // Teacher permissions now managed via TeacherPermission model
           // No filtering needed here - permissions checked at grade entry level
@@ -92,19 +97,19 @@ const EnrollmentResource = {
       delete: {
         isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin'
       },
-      bulkEnroll: {
-        actionType: 'resource',
-        icon: 'Users',
-        label: 'Đăng ký môn học theo lớp',
-        isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin',
-        component: Components.BulkEnrollmentComponent,
-        handler: async (request, response, context) => {
-          // Component sẽ xử lý logic, handler này chỉ để hiển thị component
-          return {
-            record: {}
-          };
-        }
-      }
+      // bulkEnroll: {
+      //   actionType: 'resource',
+      //   icon: 'Users',
+      //   label: 'Đăng ký môn học theo lớp',
+      //   isAccessible: ({ currentAdmin }) => currentAdmin?.role === 'admin',
+      //   component: Components.BulkEnrollmentComponent,
+      //   handler: async (request, response, context) => {
+      //     // Component sẽ xử lý logic, handler này chỉ để hiển thị component
+      //     return {
+      //       record: {}
+      //     };
+      //   }
+      // }
     }
   }
 };

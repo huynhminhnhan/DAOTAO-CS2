@@ -25,6 +25,7 @@
     'Teacher Grade Entry': 'Nhập điểm TX & ĐK',
     'Nhập Diểm TX DK': 'Quản lý điểm TX & ĐK',
     'Grade Entry' : 'Nhập điểm',
+    'Semester Grade Summary': 'Bảng điểm tổng kết',
 
      
     // Resource names (English) 

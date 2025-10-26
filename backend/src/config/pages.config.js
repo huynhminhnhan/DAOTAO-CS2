@@ -11,14 +11,14 @@ import { Components } from './components.js';
  */
 export const pagesConfig = {
   // Semester Grade Summary Page
-  'semester-grade-summary': {
-    component: Components.SemesterGradeSummary,
-    icon: 'DocumentCheck',
-    label: 'Bảng điểm tổng kết',
-    handler: async (request, response, context) => {
-      return {};
-    }
-  },
+  // 'semester-grade-summary': {
+  //   component: Components.SemesterGradeSummary,
+  //   icon: 'DocumentCheck',
+  //   label: 'Bảng điểm tổng kết',
+  //   handler: async (request, response, context) => {
+  //     return {};
+  //   }
+  // },
   // Teacher Grade Entry Page - ONLY TX and DK scores
   // 'teacher-grade-entry': {
   //   component: Components.TeacherGradeEntry,
