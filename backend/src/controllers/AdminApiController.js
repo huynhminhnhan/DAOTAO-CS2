@@ -55,7 +55,21 @@ const AdminApiController = {
   async getSubjectsByClass(req, res) {
     try {
       const { classId } = req.params;
-      const subjects = await AdminApiService.getSubjectsByClass(classId);
+      const { semesterId } = req.query;
+      const userRole = req.session.adminUser?.role;
+      const userId = req.session.adminUser?.id;
+
+      let subjects;
+
+      if (userRole === 'teacher') {
+        // Teacher chỉ được xem subjects mà họ có quyền
+        const TeacherPermissionService = (await import('../services/TeacherPermissionService.js')).default;
+        subjects = await TeacherPermissionService.getPermittedSubjects(userId, classId, semesterId);
+      } else {
+        // Admin được xem tất cả subjects
+        subjects = await AdminApiService.getSubjectsByClass(classId);
+      }
+
       return res.json({ success: true, data: subjects });
     } catch (err) {
       console.error('AdminApiController.getSubjectsByClass error:', err);

@@ -244,8 +244,8 @@ const TeacherGradeEntry = () => {
         
         if (data.success && data.data) {
           const subjects = data.data.map(classSubject => {
-            const subject = classSubject.subject;
-            const subjectId = parseInt(subject.id || subject.subjectId);
+            const subject = classSubject.params;
+            const subjectId = parseInt(subject.subjectId);
             
             if (isNaN(subjectId)) {
               console.warn('⚠️ Invalid subject ID:', subject);
@@ -266,7 +266,6 @@ const TeacherGradeEntry = () => {
             };
           }).filter(Boolean);
           
-          console.log('✅ Subjects loaded:', subjects.length);
           setSubjects(subjects);
         } else {
           console.log('ℹ️ No subjects found for class:', selectedClass);
@@ -287,12 +286,7 @@ const TeacherGradeEntry = () => {
       const loadEnrolledStudents = async () => {
         setLoading(true);
         try {
-          console.log('🔍 Loading enrolled students:', {
-            cohort: selectedCohort,
-            class: selectedClass,
-            subject: selectedSubject
-          });
-
+          
           const parsedCohortId = parseInt(selectedCohort);
           const parsedClassId = parseInt(selectedClass);
           const parsedSubjectId = parseInt(selectedSubject);
@@ -328,7 +322,6 @@ const TeacherGradeEntry = () => {
           const data = await response.json();
 
           if (data.success) {
-            console.log('📊 API Response - Enrolled Students:', data.data);
             
             // Debug: Check first student's grade status from API
             if (data.data.length > 0) {
@@ -405,7 +398,7 @@ const TeacherGradeEntry = () => {
             setError('Lỗi từ server: ' + (data.message || 'Không thể tải danh sách sinh viên'));
           }
         } catch (error) {
-          console.error('❌ Error loading enrolled students:', error);
+         
           setError('Không thể tải danh sách sinh viên: ' + error.message);
         }
         setLoading(false);

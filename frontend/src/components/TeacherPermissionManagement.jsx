@@ -359,7 +359,6 @@ const TeacherPermissionManagement = () => {
           .filter(id => id)
       )];
       
-      console.log('🔄 useEffect (subjects) triggered - Selected class IDs:', selectedClassIds);
       
       if (selectedClassIds.length === 0) {
         console.log('⚠️ No class selected, clearing subjects');
@@ -421,8 +420,7 @@ const TeacherPermissionManagement = () => {
           return acc;
         }, []);
         
-        console.log('✅ Total unique subjects loaded:', uniqueSubjects.length);
-        console.log('📋 Subjects array:', uniqueSubjects);
+       
         setSubjects(uniqueSubjects);
       } catch (error) {
         console.error('❌ Error loading subjects:', error);

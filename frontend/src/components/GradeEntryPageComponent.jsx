@@ -475,13 +475,7 @@ const GradeEntryPage = () => {
       const loadEnrolledStudents = async () => {
         setLoading(true);
         try {
-          console.log('🔍 Loading enrolled students:', {
-            cohort: selectedCohort,
-            class: selectedClass,
-            subject: selectedSubject,
-            subjectType: typeof selectedSubject,
-            selectedSubjectInfo: selectedSubjectInfo
-          });
+        
 
           // Validate parameters before making API call
           if (!selectedCohort || !selectedClass || !selectedSubject) {
@@ -615,7 +609,6 @@ const GradeEntryPage = () => {
             setError('Lỗi từ server: ' + (data.message || 'Không thể tải danh sách sinh viên'));
           }
         } catch (error) {
-          console.error('❌ Error loading enrolled students:', error);
           setError('Không thể tải danh sách sinh viên: ' + error.message);
         }
         setLoading(false);

@@ -124,6 +124,98 @@ class TeacherPermissionService {
   }
 
   /**
+   * Lấy danh sách subjects mà user có quyền nhập điểm trong một class
+   * @param {number} userId - ID của user
+   * @param {number} classId - ID của class
+   * @param {number} semesterId - ID của semester (optional)
+   * @returns {Promise<Array>}
+   */
+  static async getPermittedSubjects(userId, classId, semesterId = null) {
+    try {
+      // Lấy tất cả quyền active của user
+      const permissions = await TeacherPermission.getActivePermissions(userId);
+
+      if (!permissions || permissions.length === 0) {
+        console.log(`⚠️ User #${userId} không có quyền nào`);
+        return [];
+      }
+
+      // Build điều kiện query OR cho từng permission
+      const permissionConditions = permissions.map(perm => {
+        const condition = {};
+
+        // Semester luôn phải match (nếu được chỉ định)
+        if (semesterId) {
+          condition.semesterId = semesterId;
+        } else {
+          condition.semesterId = perm.semesterId;
+        }
+
+        // Class: NULL = tất cả, không NULL = phải match
+        if (perm.classId) {
+          condition.classId = perm.classId;
+        }
+
+        // Subject: NULL = tất cả, không NULL = phải match
+        if (perm.subjectId) {
+          condition.subjectId = perm.subjectId;
+        }
+
+        // Cohort: NULL = tất cả, không NULL = phải match
+        if (perm.cohortId) {
+          condition.cohortId = perm.cohortId;
+        }
+
+        return condition;
+      });
+
+      // Query enrollments với điều kiện OR, chỉ lấy của class được chỉ định
+      const enrollments = await Enrollment.findAll({
+        where: {
+          classId: parseInt(classId),
+          status: 'active',
+          [Op.or]: permissionConditions
+        },
+        include: [{
+          model: Subject,
+          as: 'subject',
+          attributes: ['id', 'subjectCode', 'subjectName', 'credits', 'description', 'category', 'isRequired']
+        }],
+        attributes: ['subjectId']
+      });
+
+      // Loại bỏ duplicate subjects
+      const uniqueSubjects = [];
+      const seenSubjectIds = new Set();
+
+      enrollments.forEach(enrollment => {
+        if (enrollment.subject && !seenSubjectIds.has(enrollment.subject.id)) {
+          seenSubjectIds.add(enrollment.subject.id);
+          uniqueSubjects.push({
+            id: enrollment.subject.id,
+            params: {
+              subjectId: enrollment.subject.id,
+              subjectCode: enrollment.subject.subjectCode,
+              subjectName: enrollment.subject.subjectName,
+              credits: enrollment.subject.credits,
+              description: enrollment.subject.description,
+              category: enrollment.subject.category,
+              isRequired: enrollment.subject.isRequired
+            }
+          });
+        }
+      });
+
+      console.log(`✅ User #${userId} có quyền nhập điểm cho ${uniqueSubjects.length} subjects trong class #${classId}`);
+      return uniqueSubjects;
+
+    } catch (error) {
+      console.error('❌ Lỗi khi lấy permitted subjects:', error);
+      return [];
+    }
+  }
+
+  /**
    * Tạo quyền mới cho user
    * @param {object} permissionData - Dữ liệu quyền
    * @param {number} createdBy - ID của admin tạo quyền
