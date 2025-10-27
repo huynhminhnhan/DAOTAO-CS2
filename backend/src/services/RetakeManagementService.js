@@ -3,8 +3,9 @@
  * 
  * Quy tắc nghiệp vụ:
  * 1. TBKT < 5 → HỌC LẠI (RETAKE_COURSE): Phải học lại toàn bộ môn
- * 2. Điểm thi < 5 (khi TBKT >= 5) → THI LẠI (RETAKE_EXAM): Chỉ thi lại cuối kỳ
- * 3. TBMH < 5 → THI LẠI (RETAKE_EXAM): Chỉ thi lại cuối kỳ
+ * 2. Điểm thi < 5 và đã thi lại > 1 lần → HỌC LẠI (RETAKE_COURSE): Chuyển sang học lại
+ * 3. Điểm thi < 5 → THI LẠI (RETAKE_EXAM): Chỉ thi lại cuối kỳ
+ * 4. TBMH < 5 → THI LẠI (RETAKE_EXAM): Chỉ thi lại cuối kỳ
  */
 
 import { Grade, GradeRetake, Enrollment, Student, Subject } from '../database/index.js';
@@ -29,7 +30,19 @@ const RetakeManagementService = {
       };
     }
     
-    // Rule 2: Điểm thi < 5 → Thi lại
+    // Rule 2: Điểm thi < 5 và đã thi lại > 1 lần → Học lại (không cho thi lại nữa)
+    if (finalScore !== null && finalScore < 5 && attemptNumber > 1) {
+      return {
+        needsAction: true,
+        actionType: 'RETAKE_COURSE',
+        reason: `Đã thi lại ${attemptNumber - 1} lần nhưng điểm thi = ${finalScore} < 5.0 - Chuyển sang học lại`,
+        canTakeExam: false,
+        mustRetakeCourse: true,
+        severity: 'HIGH'
+      };
+    }
+    
+    // Rule 3: Điểm thi < 5 → Thi lại
     if (finalScore !== null && finalScore < 5) {
       return {
         needsAction: true,
@@ -41,7 +54,7 @@ const RetakeManagementService = {
       };
     }
     
-    // Rule 3: Đạt tất cả
+    // Rule 4: Đạt tất cả
     if (tbmhScore >= 5) {
       return {
         needsAction: false,
@@ -71,6 +84,20 @@ const RetakeManagementService = {
     const transaction = await Grade.sequelize.transaction();
     
     try {
+      // Kiểm tra xem đã có retake đang active chưa
+      const existingActiveRetake = await GradeRetake.findOne({
+        where: {
+          studentId,
+          subjectId,
+          isCurrent: true
+        },
+        transaction
+      });
+      
+      if (existingActiveRetake) {
+        throw new Error(`Sinh viên đã có retake đang active cho môn học này (ID: ${existingActiveRetake.id}, Type: ${existingActiveRetake.retakeType})`);
+      }
+      
       // 1. Lấy thông tin grade gốc và enrollment
       const originalGrade = await Grade.findByPk(originalGradeId, {
         include: [{ model: Enrollment, as: 'enrollment' }],
@@ -152,6 +179,20 @@ const RetakeManagementService = {
     const transaction = await Grade.sequelize.transaction();
     
     try {
+      // Kiểm tra xem đã có retake đang active chưa
+      const existingActiveRetake = await GradeRetake.findOne({
+        where: {
+          studentId,
+          subjectId,
+          isCurrent: true
+        },
+        transaction
+      });
+      
+      if (existingActiveRetake) {
+        throw new Error(`Sinh viên đã có retake đang active cho môn học này (ID: ${existingActiveRetake.id}, Type: ${existingActiveRetake.retakeType})`);
+      }
+      
       // 1. Lấy thông tin grade gốc
       const originalGrade = await Grade.findByPk(originalGradeId, {
         include: [{ model: Enrollment, as: 'enrollment' }],

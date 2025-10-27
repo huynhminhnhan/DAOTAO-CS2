@@ -34,12 +34,27 @@ export const RETAKE_RULES = {
  * Phân tích trạng thái điểm và đưa ra gợi ý
  * Thứ tự ưu tiên:
  * 1. TBKT < 5 → Học lại
- * 2. finalScore < 5 → Thi lại (ưu tiên hơn TBMH)
- * 3. TBMH >= 5 → Đạt
- * 4. Chưa đủ điểm → Pending
+ * 2. finalScore < 5 và attemptNumber > 1 → Học lại (đã thi lại 1 lần rồi)
+ * 3. finalScore < 5 → Thi lại (ưu tiên hơn TBMH)
+ * 4. TBMH >= 5 → Đạt
+ * 5. Chưa đủ điểm → Pending
  */
 export const analyzeGradeStatus = (gradeData) => {
   const { tbktScore, finalScore, tbmhScore, attemptNumber = 1 } = gradeData;
+  
+  // Debug log
+  console.log('[analyzeGradeStatus] Input:', {
+    tbktScore,
+    finalScore,
+    tbmhScore,
+    attemptNumber,
+    checks: {
+      tbktCheck: tbktScore >= 5,
+      finalScoreCheck: finalScore !== null && finalScore !== undefined && finalScore !== '' && Number(finalScore) < 5,
+      attemptCheck: attemptNumber > 1
+    }
+  });
+  
   // Rule 1: TBKT < 5 → Học lại (Ưu tiên cao nhất)
   if (RETAKE_RULES.RETAKE_COURSE.condition(tbktScore)) {
     return {
@@ -56,9 +71,26 @@ export const analyzeGradeStatus = (gradeData) => {
     };
   }
   
-  // Rule 2: Thi lại (finalScore < 5, bất kể TBMH - ưu tiên hơn PASS)
+  // Rule 2: finalScore < 5 và đã thi lại 1 lần → Học lại (không cho thi lại nữa)
+  if (RETAKE_RULES.RETAKE_EXAM.condition(tbktScore, finalScore, tbmhScore) && attemptNumber > 1) {
+    console.log('[analyzeGradeStatus] RETAKE_EXAM failed (attempt > 1), forcing RETAKE_COURSE');
+    return {
+      needsAction: true,
+      actionType: 'RETAKE_COURSE',
+      reason: `Đã thi lại ${attemptNumber - 1} lần nhưng điểm thi = ${finalScore} < 5.0`,
+      description: 'Đã thi lại quá 1 lần, chuyển sang học lại toàn bộ môn',
+      action: 'Tạo enrollment mới, nhập lại tất cả điểm TX, DK, Thi',
+      severity: 'HIGH',
+      canTakeExam: false,
+      showRetakeButton: true,
+      buttonText: '🔄 Tạo học lại',
+      buttonColor: '#dc3545'
+    };
+  }
+  
+  // Rule 3: Thi lại (finalScore < 5, lần đầu tiên - ưu tiên hơn PASS)
   if (RETAKE_RULES.RETAKE_EXAM.condition(tbktScore, finalScore, tbmhScore)) {
-    
+    console.log('[analyzeGradeStatus] RETAKE_EXAM triggered for finalScore:', finalScore, 'attempt:', attemptNumber);
     return {
       needsAction: true,
       actionType: 'RETAKE_EXAM',
@@ -73,7 +105,7 @@ export const analyzeGradeStatus = (gradeData) => {
     };
   }
   
-  // Rule 3: Đạt (TBMH >= 5, sau khi đã loại trừ thi lại)
+  // Rule 4: Đạt (TBMH >= 5, sau khi đã loại trừ thi lại)
   if (tbmhScore !== null && tbmhScore !== undefined && tbmhScore !== '' && Number(tbmhScore) >= 5) {
     return {
       needsAction: false,
@@ -87,7 +119,7 @@ export const analyzeGradeStatus = (gradeData) => {
     };
   }
   
-  // Rule 4: Chưa có đủ điểm (TBKT ≥ 5 nhưng chưa nhập điểm thi)
+  // Rule 5: Chưa có đủ điểm (TBKT ≥ 5 nhưng chưa nhập điểm thi)
   return {
     needsAction: false,
     actionType: 'PENDING',

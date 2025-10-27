@@ -23,13 +23,6 @@ class GradeUpdateController {
         retakeDate // Ngày thi lại từ frontend
       } = req.body;
 
-      // Debug: Log retakeDate để kiểm tra
-      console.log('🔍 [updateRetakeExam] retakeDate received:', retakeDate);
-      console.log('🔍 [updateRetakeExam] retakeDate type:', typeof retakeDate);
-      if (retakeDate) {
-        console.log('🔍 [updateRetakeExam] retakeDate converted:', new Date(retakeDate));
-      }
-
       // Validation
       if (!gradeId || !studentId || !subjectId || finalScore === undefined || tbmhScore === undefined) {
         return res.status(400).json({
@@ -57,7 +50,6 @@ class GradeUpdateController {
         throw new Error('Không tìm thấy enrollmentId trong bản ghi điểm hiện tại');
       }
 
-      console.log('Using enrollmentId from Grade:', enrollmentId); // Debug log
 
       // Kiểm tra xem có record RETAKE_COURSE với FAIL_EXAM không
       const failedCourseRetake = await GradeRetake.findOne({
@@ -98,7 +90,7 @@ class GradeUpdateController {
           semester: failedCourseRetake.semester,
           academicYear: failedCourseRetake.academicYear,
           isCurrent: true,
-          resultStatus: tbmhScore >= 5 ? 'PASS' : 'FAIL_EXAM',
+          resultStatus: finalScore < 5 ? 'FAIL_EXAM' : (tbmhScore >= 5 ? 'PASS' : 'FAIL_EXAM'),
           completed_at: retakeDate || new Date().toISOString().split('T')[0] // Lưu dạng YYYY-MM-DD
         }, { transaction });
 
@@ -141,21 +133,20 @@ class GradeUpdateController {
             semester: currentGrade.semester || 'HK1',
             academicYear: currentGrade.academicYear || '2024-25',
             isCurrent: false,
-            resultStatus: currentGrade.tbmhScore >= 5 ? 'PASS' : 'FAIL_EXAM'
+            resultStatus: currentGrade.finalScore < 5 ? 'FAIL_EXAM' : (currentGrade.tbmhScore >= 5 ? 'PASS' : 'FAIL_EXAM')
           }, { transaction });
         }
 
         // Đánh dấu các retake cũ không còn current
         await GradeRetake.update(
           { isCurrent: false },
-          { 
-            where: { 
-              studentId, 
+          {
+            where: {
+              studentId,
               subjectId,
-              retakeType: 'RETAKE_EXAM',
-              isCurrent: true
+              id: { [Grade.sequelize.Sequelize.Op.ne]: newRecord.id }
             },
-            transaction 
+            transaction
           }
         );
 
@@ -186,7 +177,7 @@ class GradeUpdateController {
           semester: currentGrade.semester || 'HK1',
           academicYear: currentGrade.academicYear || '2024-25',
           isCurrent: true,
-          resultStatus: tbmhScore >= 5 ? 'PASS' : 'FAIL_EXAM',
+          resultStatus: finalScore < 5 ? 'FAIL_EXAM' : (tbmhScore >= 5 ? 'PASS' : 'FAIL_EXAM'),
           completed_at: retakeDate || new Date().toISOString().split('T')[0] // Lưu dạng YYYY-MM-DD
         }, { transaction });
       }
@@ -390,25 +381,22 @@ class GradeUpdateController {
           semester: currentCourseGrade.semester || 'HK1',
           academicYear: currentCourseGrade.academicYear || '2024-25',
           isCurrent: false,
-          resultStatus: currentCourseGrade.tbmhScore >= 5 ? 'PASS' : (currentCourseGrade.tbktScore < 5 ? 'FAIL_TBKT' : 'FAIL_EXAM')
+          resultStatus: currentCourseGrade.finalScore < 5 ? 'FAIL_EXAM' : (currentCourseGrade.tbmhScore >= 5 ? 'PASS' : (currentCourseGrade.tbktScore < 5 ? 'FAIL_TBKT' : 'FAIL_EXAM'))
         }, { transaction });
       }
 
-      // Đánh dấu các retake cũ không còn current
-      await GradeRetake.update(
-        { isCurrent: false },
-        { 
-          where: { 
-            studentId, 
-            subjectId,
-            retakeType: 'RETAKE_COURSE',
-            isCurrent: true
-          },
-          transaction 
-        }
-      );
-
-      // Cập nhật toàn bộ điểm mới vào Grade (bảng chính)
+        // Đánh dấu các retake cũ không còn current
+        await GradeRetake.update(
+          { isCurrent: false },
+          {
+            where: {
+              studentId,
+              subjectId,
+              id: { [Grade.sequelize.Sequelize.Op.ne]: newRecord.id }
+            },
+            transaction
+          }
+        );      // Cập nhật toàn bộ điểm mới vào Grade (bảng chính)
       await currentCourseGrade.update({
         txScore,
         dkScore,
