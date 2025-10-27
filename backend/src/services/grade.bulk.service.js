@@ -1,5 +1,6 @@
 import GradeRepository from '../repositories/grade.repository.js';
 import GradeService from './GradeService.js';
+import RetakeManagementService from './RetakeManagementService.js';
 import { sequelize } from '../database/index.js';
 import { GradeStateTransition } from '../database/index.js';
 
@@ -104,6 +105,37 @@ const GradeBulkService = {
                         }
                         
                         await GradeService.createGradeHistory(grade.id, session?.adminUser?.id, 'update', null, oldSnapshot, grade.toJSON(), { ipAddress: reqMeta.ipAddress, userAgent: reqMeta.userAgent, changedByRole: session?.adminUser?.role, reason: `${session?.adminUser?.username} đã cập nhật điểm${statusReason}`, transaction: t });
+                        
+                        // Check if retake is needed when finalScore < 5
+                        if (finalScore !== null && finalScore !== undefined && finalScore !== '' && parseFloat(finalScore) < 5) {
+                            const retakeAction = RetakeManagementService.analyzeGradeStatus({
+                                tbktScore: parseFloat(tbktScore),
+                                finalScore: parseFloat(finalScore),
+                                tbmhScore: parseFloat(tbmhScore)
+                            });
+                            
+                            if (retakeAction.needsAction) {
+                                if (retakeAction.actionType === 'RETAKE_EXAM') {
+                                    await RetakeManagementService.createRetakeExam(
+                                        grade.id, 
+                                        gradeData.studentId, 
+                                        gradeData.subjectId, 
+                                        retakeAction.reason, 
+                                        gradeData.semester || 'HK1', 
+                                        gradeData.academicYear || '2024-25'
+                                    );
+                                } else if (retakeAction.actionType === 'RETAKE_COURSE') {
+                                    await RetakeManagementService.createRetakeCourse(
+                                        grade.id, 
+                                        gradeData.studentId, 
+                                        gradeData.subjectId, 
+                                        retakeAction.reason, 
+                                        gradeData.semester || 'HK1', 
+                                        gradeData.academicYear || '2024-25'
+                                    );
+                                }
+                            }
+                        }
                     } else {
                         // For new grades, set FINAL_ENTERED if finalScore is provided
                         let initialStatus = 'DRAFT';
@@ -132,6 +164,37 @@ const GradeBulkService = {
                         }
                         
                         await GradeService.createGradeHistory(grade.id, session?.adminUser?.id, 'create', null, null, grade.toJSON(), { ipAddress: reqMeta.ipAddress, userAgent: reqMeta.userAgent, changedByRole: session?.adminUser?.role, reason: `${session?.adminUser?.username} đã tạo điểm mới${initialStatus === 'FINAL_ENTERED' ? ' (có điểm thi)' : ''}`, transaction: t });
+                        
+                        // Check if retake is needed when finalScore < 5 for new grades
+                        if (finalScore !== null && finalScore !== undefined && finalScore !== '' && parseFloat(finalScore) < 5) {
+                            const retakeAction = RetakeManagementService.analyzeGradeStatus({
+                                tbktScore: parseFloat(tbktScore),
+                                finalScore: parseFloat(finalScore),
+                                tbmhScore: parseFloat(tbmhScore)
+                            });
+                            
+                            if (retakeAction.needsAction) {
+                                if (retakeAction.actionType === 'RETAKE_EXAM') {
+                                    await RetakeManagementService.createRetakeExam(
+                                        grade.id, 
+                                        gradeData.studentId, 
+                                        gradeData.subjectId, 
+                                        retakeAction.reason, 
+                                        gradeData.semester || 'HK1', 
+                                        gradeData.academicYear || '2024-25'
+                                    );
+                                } else if (retakeAction.actionType === 'RETAKE_COURSE') {
+                                    await RetakeManagementService.createRetakeCourse(
+                                        grade.id, 
+                                        gradeData.studentId, 
+                                        gradeData.subjectId, 
+                                        retakeAction.reason, 
+                                        gradeData.semester || 'HK1', 
+                                        gradeData.academicYear || '2024-25'
+                                    );
+                                }
+                            }
+                        }
                     }
 
                     // Add full grade status info to response

@@ -1115,7 +1115,7 @@ const TeacherGradeEntry = () => {
           <strong>⚠️ Lưu ý quan trọng:</strong>
           <ul style={{ margin: '5px 0 0 20px', paddingLeft: '0' }}>
             <li>Giáo viên chỉ được nhập <strong>điểm Thường Xuyên (TX)</strong> và <strong>điểm Điều Kiện (ĐK)</strong></li>
-            <li>Hệ thống sẽ tự động tính <strong>TBKT = TX × 40% + ĐK × 60%</strong></li>
+            <li title="TBKT là trung bình có trọng số của điểm TX và ĐK. TX có trọng số 1, ĐK có trọng số 2 (quan trọng hơn). Công thức: (TX_tb × 1 + ĐK_tb × 2) / 3. Ví dụ: TX_tb=8.75, ĐK_tb=7.75 → TBKT = (8.75 + 15.5)/3 ≈ 8.08">Hệ thống sẽ tự động tính <strong>TBKT = (TX × 1 + ĐK × 2) / 3</strong></li>
             <li><strong>Điểm Thi Cuối Kỳ</strong> chỉ do <strong>Admin</strong> nhập sau khi thi</li>
           </ul>
         </div>

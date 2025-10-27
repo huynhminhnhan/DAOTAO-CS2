@@ -2292,11 +2292,13 @@ const GradeEntryPage = () => {
                         
                         {/* Trạng thái SV */}
                         <td style={{ padding: '5px', border: '1px solid #dee2e6', textAlign: 'center' }}>
-                          {studentGrade.tbmhScore >= 5 ? 
-                            <span style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Đạt</span> :
-                            studentGrade.tbmhScore > 0 ? 
-                              <span style={{ color: '#dc3545', fontWeight: 'bold' }}>❌ Không đạt</span> :
-                              <span style={{ color: '#6c757d' }}>⏳ Chưa có điểm</span>
+                          {studentGrade.finalScore && parseFloat(studentGrade.finalScore) < 5 ? 
+                            <span style={{ color: '#dc3545', fontWeight: 'bold' }}>🔄 Thi lại</span> :
+                            studentGrade.tbmhScore >= 5 ? 
+                              <span style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Đạt</span> :
+                              studentGrade.tbmhScore > 0 ? 
+                                <span style={{ color: '#dc3545', fontWeight: 'bold' }}>❌ Không đạt</span> :
+                                <span style={{ color: '#6c757d' }}>⏳ Chưa có điểm</span>
                           }
                         </td>
                         

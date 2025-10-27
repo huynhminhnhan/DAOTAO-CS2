@@ -13,25 +13,18 @@ export const RETAKE_RULES = {
   RETAKE_EXAM: {
     condition: (tbktScore, finalScore, tbmhScore) => {
       // Chỉ hiển thị thi lại khi:
-      // 1. TBKT ≥ 5 (đạt điều kiện thi)
-      // 2. ĐÃ CÓ điểm thi (finalScore !== null và !== undefined và !== '')
-      // 3. Điểm thi < 5 HOẶC TBMH < 5 (không đạt)
-      if (tbktScore === null || tbktScore === undefined || tbktScore < 5) {
-        return false; // TBKT < 5 → Học lại, không phải thi lại
-      }
-      
-      // Kiểm tra chưa có điểm thi (null, undefined, empty string, hoặc 0)
+      // 1. ĐÃ CÓ điểm thi (finalScore !== null và !== undefined và !== '')
+      // 2. Điểm thi < 5
       if (finalScore === null || finalScore === undefined || finalScore === '' || finalScore === 0) {
         return false; // Chưa có điểm thi → Không hiển thị gì
       }
       
       // Đã có điểm thi → Kiểm tra kết quả
       const finalScoreNum = Number(finalScore);
-      const tbmhScoreNum = tbmhScore !== null && tbmhScore !== undefined && tbmhScore !== '' ? Number(tbmhScore) : null;
       
-      return finalScoreNum < 5 || (tbmhScoreNum !== null && tbmhScoreNum < 5);
+      return finalScoreNum < 5;
     },
-    description: 'TBKT ≥ 5 nhưng điểm thi < 5 hoặc TBMH < 5 → Thi lại',
+    description: 'Điểm thi < 5 → Thi lại',
     action: 'Giữ nguyên TX, DK, TBKT - chỉ thi lại cuối kỳ',
     severity: 'MEDIUM'
   }
@@ -39,27 +32,14 @@ export const RETAKE_RULES = {
 
 /**
  * Phân tích trạng thái điểm và đưa ra gợi ý
+ * Thứ tự ưu tiên:
+ * 1. TBKT < 5 → Học lại
+ * 2. finalScore < 5 → Thi lại (ưu tiên hơn TBMH)
+ * 3. TBMH >= 5 → Đạt
+ * 4. Chưa đủ điểm → Pending
  */
 export const analyzeGradeStatus = (gradeData) => {
   const { tbktScore, finalScore, tbmhScore, attemptNumber = 1 } = gradeData;
-  
-  // Debug log
-  console.log('[analyzeGradeStatus] Input:', {
-    tbktScore,
-    tbktScoreType: typeof tbktScore,
-    finalScore,
-    finalScoreType: typeof finalScore,
-    tbmhScore,
-    tbmhScoreType: typeof tbmhScore,
-    checks: {
-      isFinalScoreNull: finalScore === null,
-      isFinalScoreUndefined: finalScore === undefined,
-      isFinalScoreEmpty: finalScore === '',
-      isFinalScoreZero: finalScore === 0,
-      tbktCheck: tbktScore >= 5
-    }
-  });
-  
   // Rule 1: TBKT < 5 → Học lại (Ưu tiên cao nhất)
   if (RETAKE_RULES.RETAKE_COURSE.condition(tbktScore)) {
     return {
@@ -76,7 +56,24 @@ export const analyzeGradeStatus = (gradeData) => {
     };
   }
   
-  // Rule 2: Đạt (Kiểm tra trước khi kiểm tra thi lại)
+  // Rule 2: Thi lại (finalScore < 5, bất kể TBMH - ưu tiên hơn PASS)
+  if (RETAKE_RULES.RETAKE_EXAM.condition(tbktScore, finalScore, tbmhScore)) {
+    
+    return {
+      needsAction: true,
+      actionType: 'RETAKE_EXAM',
+      reason: `Điểm thi = ${finalScore} < 5.0`,
+      description: RETAKE_RULES.RETAKE_EXAM.description,
+      action: RETAKE_RULES.RETAKE_EXAM.action,
+      severity: RETAKE_RULES.RETAKE_EXAM.severity,
+      canTakeExam: false,
+      showRetakeButton: true,
+      buttonText: '📝 Tạo thi lại',
+      buttonColor: '#ffc107'
+    };
+  }
+  
+  // Rule 3: Đạt (TBMH >= 5, sau khi đã loại trừ thi lại)
   if (tbmhScore !== null && tbmhScore !== undefined && tbmhScore !== '' && Number(tbmhScore) >= 5) {
     return {
       needsAction: false,
@@ -87,22 +84,6 @@ export const analyzeGradeStatus = (gradeData) => {
       canTakeExam: true,
       showRetakeButton: false,
       isPassed: true
-    };
-  }
-  
-  // Rule 3: Thi lại (TBKT ≥ 5, đã có điểm thi, nhưng không đạt)
-  if (RETAKE_RULES.RETAKE_EXAM.condition(tbktScore, finalScore, tbmhScore)) {
-    return {
-      needsAction: true,
-      actionType: 'RETAKE_EXAM',
-      reason: finalScore < 5 ? `Điểm thi = ${finalScore} < 5.0` : `TBMH = ${tbmhScore} < 5.0`,
-      description: RETAKE_RULES.RETAKE_EXAM.description,
-      action: RETAKE_RULES.RETAKE_EXAM.action,
-      severity: RETAKE_RULES.RETAKE_EXAM.severity,
-      canTakeExam: false,
-      showRetakeButton: true,
-      buttonText: '📝 Tạo thi lại',
-      buttonColor: '#ffc107'
     };
   }
   

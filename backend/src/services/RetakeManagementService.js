@@ -29,31 +29,19 @@ const RetakeManagementService = {
       };
     }
     
-    // Rule 2: TBKT >= 5 nhưng điểm thi < 5
-    if (tbktScore >= 5 && finalScore !== null && finalScore < 5) {
+    // Rule 2: Điểm thi < 5 → Thi lại
+    if (finalScore !== null && finalScore < 5) {
       return {
         needsAction: true,
         actionType: 'RETAKE_EXAM',
-        reason: `Điểm thi = ${finalScore} < 5.0 (TBKT = ${tbktScore} đạt)`,
+        reason: `Điểm thi = ${finalScore} < 5.0 - Cần thi lại`,
         canTakeExam: false,
         mustRetakeExam: true,
         severity: 'MEDIUM'
       };
     }
     
-    // Rule 3: TBMH < 5 (tính từ TBKT + finalScore)
-    if (tbmhScore !== null && tbmhScore < 5 && tbktScore >= 5) {
-      return {
-        needsAction: true,
-        actionType: 'RETAKE_EXAM',
-        reason: `TBMH = ${tbmhScore} < 5.0 (TBKT = ${tbktScore} đạt)`,
-        canTakeExam: false,
-        mustRetakeExam: true,
-        severity: 'MEDIUM'
-      };
-    }
-    
-    // Rule 4: Đạt tất cả
+    // Rule 3: Đạt tất cả
     if (tbmhScore >= 5) {
       return {
         needsAction: false,

@@ -134,23 +134,7 @@ const RetakeManagementComponent = ({
     attemptNumber: gradeData.attemptNumber || 1
   });
 
-  // Debug log
-  useEffect(() => {
-    if (gradeData.gradeId) {
-      console.log(`[RetakeManagement] Student ${student.studentCode}:`, {
-        tbktScore: gradeData.tbktScore,
-        finalScore: gradeData.finalScore,
-        tbmhScore: gradeData.tbmhScore,
-        hasExistingGrade,
-        analysis: {
-          needsAction: analysis.needsAction,
-          actionType: analysis.actionType,
-          isPassed: analysis.isPassed,
-          isPending: analysis.isPending
-        }
-      });
-    }
-  }, [gradeData.tbmhScore, gradeData.tbktScore, gradeData.finalScore, hasExistingGrade]);
+
 
   // Xử lý mở modal tương ứng
   const handleOpenModal = () => {
