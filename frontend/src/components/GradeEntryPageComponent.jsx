@@ -19,10 +19,12 @@ import RetakeManagementComponent from './RetakeManagementComponent.jsx';
  */
 const GradeEntryPage = () => {
   const [cohorts, setCohorts] = useState([]);
+  const [semesters, setSemesters] = useState([]); // ✅ NEW: Danh sách học kỳ
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [students, setStudents] = useState([]);
   const [selectedCohort, setSelectedCohort] = useState('');
+  const [selectedSemester, setSelectedSemester] = useState(''); // ✅ NEW: Học kỳ được chọn
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedSubjectInfo, setSelectedSubjectInfo] = useState(null);
@@ -284,6 +286,45 @@ const GradeEntryPage = () => {
     loadCohorts();
   }, []);
 
+  // ✅ NEW: Load danh sách học kỳ theo khóa học
+  useEffect(() => {
+    const loadSemesters = async () => {
+      if (!selectedCohort) {
+        setSemesters([]);
+        setSelectedSemester(''); // Reset semester khi cohort thay đổi
+        return;
+      }
+
+      try {
+        console.log('Loading semesters for cohort:', selectedCohort);
+        const api = new ApiClient();
+        const semestersResponse = await api.resourceAction({
+          resourceId: 'Semesters',
+          actionName: 'list',
+          params: {}
+        });
+        const allSemesters = semestersResponse.data.records || [];
+
+        // Filter semesters theo cohortId
+        const cohortIdInt = parseInt(selectedCohort, 10);
+        const filteredSemesters = allSemesters.filter(sem => {
+          const semCohortId = sem.params?.cohortId 
+            || sem.params?.cohort_id 
+            || sem.cohortId;
+          return parseInt(semCohortId, 10) === cohortIdInt;
+        });
+
+        console.log('✅ Semesters loaded:', filteredSemesters.length);
+        setSemesters(filteredSemesters);
+        setSelectedSemester(''); // Reset semester selection
+      } catch (error) {
+        console.error('Error loading semesters:', error);
+        setError('Không thể tải danh sách học kỳ: ' + error.message);
+      }
+    };
+    loadSemesters();
+  }, [selectedCohort]);
+
   // Load danh sách lớp theo khóa học
   useEffect(() => {
     if (selectedCohort) {
@@ -336,20 +377,25 @@ const GradeEntryPage = () => {
       loadClassesByCohort();
     } else {
       setClasses([]);
+      setSelectedClass(''); // ✅ Reset class khi cohort thay đổi
+      setSelectedSubject(''); // ✅ Reset subject khi cohort thay đổi
     }
   }, [selectedCohort]);
 
-  // Load danh sách môn học theo class đã chọn
+  // ✅ UPDATED: Load danh sách môn học theo class và semester đã chọn
   useEffect(() => {
     const loadSubjectsByClass = async () => {
-      if (!selectedClass) {
-        setSubjects([]); // Clear subjects when no class selected
+      // ✅ Require cả selectedClass AND selectedSemester
+      if (!selectedClass || !selectedSemester) {
+        setSubjects([]); // Clear subjects when no class or semester selected
+        setSelectedSubject(''); // ✅ Reset subject khi class hoặc semester thay đổi
         return;
       }
       
       try {
-        console.log('Loading subjects for class:', selectedClass);
-        const response = await fetch(`/admin-api/subjects/by-class/${selectedClass}`, { 
+        console.log('Loading subjects for class:', selectedClass, 'semester:', selectedSemester);
+        // ✅ IMPROVED: Gửi semesterId trong query string để backend filter chính xác
+        const response = await fetch(`/admin-api/subjects/by-class/${selectedClass}?semesterId=${selectedSemester}`, { 
           credentials: 'include' 
         });
         const data = await response.json();
@@ -393,7 +439,7 @@ const GradeEntryPage = () => {
     };
 
     loadSubjectsByClass();
-  }, [selectedClass]);
+  }, [selectedClass, selectedSemester]); // ✅ Updated: Trigger khi cả selectedClass và selectedSemester thay đổi
 
   // Fallback function to load all subjects
   const loadAllSubjects = async () => {
@@ -471,14 +517,14 @@ const GradeEntryPage = () => {
 
   // Load danh sách sinh viên đã đăng ký khi chọn đủ thông tin
   useEffect(() => {
-    if (selectedCohort && selectedClass && selectedSubject) {
+    if (selectedCohort && selectedClass && selectedSubject && selectedSemester) { // ✅ Updated: Thêm selectedSemester
       const loadEnrolledStudents = async () => {
         setLoading(true);
         try {
         
 
           // Validate parameters before making API call
-          if (!selectedCohort || !selectedClass || !selectedSubject) {
+          if (!selectedCohort || !selectedClass || !selectedSubject || !selectedSemester) { // ✅ Updated
             console.error('❌ Missing parameters:', {
               cohortId: selectedCohort,
               classId: selectedClass,
@@ -631,7 +677,7 @@ const GradeEntryPage = () => {
       // Reset students khi chưa chọn đủ thông tin
       setStudents([]);
     }
-  }, [selectedCohort, selectedClass, selectedSubject]);
+  }, [selectedCohort, selectedClass, selectedSubject, selectedSemester]); // ✅ Updated: Thêm selectedSemester
 
   const handleCohortChange = (e) => {
     const cohortId = e.target.value;
@@ -1315,8 +1361,8 @@ const GradeEntryPage = () => {
       setError('');
      
       // Validate required selections
-      if (!selectedCohort || !selectedClass || !selectedSubject) {
-        throw new Error('Vui lòng chọn đầy đủ khóa học, lớp và môn học');
+      if (!selectedCohort || !selectedClass || !selectedSubject || !selectedSemester) { // ✅ Updated: Thêm selectedSemester
+        throw new Error('Vui lòng chọn đầy đủ khóa học, lớp, học kỳ và môn học');
       }
 
       // Validate that we have grades to save - updated for JSON format
@@ -1706,6 +1752,45 @@ const GradeEntryPage = () => {
             </select>
           </div>
 
+          {/* ✅ NEW: Chọn học kỳ */}
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              📅 Học kỳ:
+            </label>
+            <select
+              value={selectedSemester}
+              onChange={(e) => setSelectedSemester(e.target.value)}
+              disabled={!selectedCohort}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #ced4da',
+                borderRadius: '4px',
+                fontSize: '14px',
+                backgroundColor: !selectedCohort ? '#e9ecef' : 'white',
+                cursor: !selectedCohort ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <option value="">
+                {!selectedCohort ? '-- Chọn khóa học trước --' : '-- Chọn học kỳ --'}
+              </option>
+              {semesters.map((sem, index) => {
+                const semesterId = sem.params?.semesterId 
+                  || sem.params?.semester_id 
+                  || sem.semesterId 
+                  || sem.id;
+                const semesterName = sem.params?.name 
+                  || sem.params?.semesterName 
+                  || sem.name;
+                return (
+                  <option key={sem.id || `semester-${index}`} value={semesterId}>
+                    {semesterName}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
           {/* Chọn lớp */}
           <div style={{ flex: 1, minWidth: '200px' }}>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
@@ -1744,19 +1829,19 @@ const GradeEntryPage = () => {
             <select
               value={selectedSubject}
               onChange={handleSubjectChange}
-              disabled={!selectedClass}
+              disabled={!selectedClass || !selectedSemester}
               style={{
                 width: '100%',
                 padding: '8px 12px',
                 border: '1px solid #ced4da',
                 borderRadius: '4px',
                 fontSize: '14px',
-                backgroundColor: !selectedClass ? '#e9ecef' : 'white',
-                cursor: !selectedClass ? 'not-allowed' : 'pointer'
+                backgroundColor: !selectedClass || !selectedSemester ? '#e9ecef' : 'white',
+                cursor: !selectedClass || !selectedSemester ? 'not-allowed' : 'pointer'
               }}
             >
               <option value="">
-                {!selectedClass ? '-- Chọn lớp trước --' : '-- Chọn môn học --'}
+                {!selectedClass ? '-- Chọn lớp trước --' : !selectedSemester ? '-- Chọn học kỳ trước --' : '-- Chọn môn học --'}
               </option>
               {(() => {
                 console.log('🔍 Rendering subjects options:', { 
@@ -1775,7 +1860,7 @@ const GradeEntryPage = () => {
         </div>
 
         {/* Hiển thị thông tin đã chọn */}
-        {(selectedCohort || selectedClass || selectedSubject) && (
+        {(selectedCohort || selectedSemester || selectedClass || selectedSubject) && (
           <div style={{
             padding: '10px',
             backgroundColor: '#d1ecf1',
@@ -1787,6 +1872,12 @@ const GradeEntryPage = () => {
             {selectedCohort && (
               <>
                 <span>🎓 Khóa: {cohorts.find(c => c?.cohortId?.toString() === selectedCohort)?.name || selectedCohort}</span>
+                {(selectedSemester || selectedClass || selectedSubject) && ' | '}
+              </>
+            )}
+            {selectedSemester && (
+              <>
+                <span>📅 Học kỳ: {semesters.find(s => (s.params?.semesterId || s.params?.semester_id || s.semesterId || s.id)?.toString() === selectedSemester)?.params?.name || semesters.find(s => (s.params?.semesterId || s.params?.semester_id || s.semesterId || s.id)?.toString() === selectedSemester)?.name || selectedSemester}</span>
                 {(selectedClass || selectedSubject) && ' | '}
               </>
             )}
@@ -1800,7 +1891,7 @@ const GradeEntryPage = () => {
               <span>📚 Môn: {subjects.find(s => s?.id?.toString() === selectedSubject)?.params?.subjectName || selectedSubject}</span>
             )}
             
-            {selectedCohort && selectedClass && selectedSubject && (
+            {selectedCohort && selectedClass && selectedSubject && selectedSemester && (
               <div style={{ marginTop: '5px', fontSize: '12px', color: '#0c5460' }}>
                 ✅ Đã chọn đủ thông tin. Danh sách sinh viên sẽ được tải bên dưới.
               </div>
@@ -1809,8 +1900,8 @@ const GradeEntryPage = () => {
         )}
       </div>
 
-      {/* Bảng nhập điểm - chỉ hiện khi đã chọn đủ 3 thông tin */}
-      {selectedCohort && selectedClass && selectedSubject && (
+      {/* Bảng nhập điểm - chỉ hiện khi đã chọn đủ 4 thông tin */}
+      {selectedCohort && selectedClass && selectedSubject && selectedSemester && (
         <div style={{
           backgroundColor: '#fff',
           padding: '20px',
@@ -2636,7 +2727,7 @@ const GradeEntryPage = () => {
       )}
 
       {/* Debug section - chỉ hiện trong development */}
-      {selectedCohort && selectedClass && selectedSubject && !students.length && (
+      {selectedCohort && selectedClass && selectedSubject && selectedSemester && !students.length && ( // ✅ Updated: Thêm selectedSemester
         <div style={{
           marginTop: '20px',
           padding: '15px',

@@ -37,7 +37,7 @@ export const calculateTBKT = (txScore, dkScore, options = {}) => {
   const {
     txCoefficient = GRADE_COEFFICIENTS.TX,
     dkCoefficient = GRADE_COEFFICIENTS.DK,
-    precision = 2
+    precision = 1
   } = options;
 
   // Extract và validate điểm TX
@@ -86,7 +86,7 @@ export const calculateTBMH = (tbktScore, finalScore, options = {}) => {
   const {
     finalWeight = GRADE_WEIGHTS.FINAL,    // Trọng số điểm thi 60%
     tbktWeight = GRADE_WEIGHTS.TBKT,      // Trọng số điểm TBKT 40%
-    precision = 2
+    precision = 1
   } = options;
 
   // Validate input

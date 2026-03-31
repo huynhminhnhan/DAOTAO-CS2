@@ -350,77 +350,100 @@ const TeacherPermissionManagement = () => {
   }, [permissionList.map(p => p.cohortId).join(',')]); // Trigger khi cohortId thay đổi
 
   // Load subjects khi class được chọn trong bất kỳ permission nào
+  // ⚠️ CHỈ LOAD nếu cả semesterId và classId đều được chọn
   useEffect(() => {
     const loadSubjectsForPermissions = async () => {
-      // Lấy tất cả classId đã được chọn
-      const selectedClassIds = [...new Set(
-        permissionList
-          .map(perm => perm.classId)
-          .filter(id => id)
-      )];
+      // Lấy tất cả (semesterId, classId) pairs được chọn
+      const selectedPairs = permissionList
+        .filter(perm => perm.semesterId && perm.classId)
+        .map(perm => ({
+          semesterId: parseInt(perm.semesterId),
+          classId: parseInt(perm.classId)
+        }));
       
+      console.log('🔄 useEffect triggered - Selected semester/class pairs:', selectedPairs);
       
-      if (selectedClassIds.length === 0) {
-        console.log('⚠️ No class selected, clearing subjects');
+      if (selectedPairs.length === 0) {
+        console.log('⚠️ No semester+class pair selected, clearing subjects');
         setSubjects([]);
         return;
       }
       
-      // Load subjects cho tất cả class đã chọn
+      // Load subjects cho tất cả (semesterId, classId) pairs đã chọn
       try {
         const allSubjects = [];
         
-        for (const classId of selectedClassIds) {
-          console.log('📡 Loading subjects for class:', classId);
-          const response = await fetch(`/admin-api/subjects/by-class/${classId}`, { 
+        for (const pair of selectedPairs) {
+          const { semesterId, classId } = pair;
+          console.log(`📡 Loading subjects for class: ${classId}, semester: ${semesterId}`);
+          
+          // ✅ IMPROVED: Gửi semesterId trong query string để backend filter chính xác
+          const response = await fetch(`/admin-api/subjects/by-class/${classId}?semesterId=${semesterId}`, { 
             credentials: 'include' 
           });
           const data = await response.json();
           
-          console.log('📥 Subjects response for class', classId, ':', data);
+          console.log(`📥 Subjects response for class ${classId}:`, data);
           
           if (data.success && data.data) {
             console.log('✅ Subjects received:', data.data.length);
-            console.log('📋 Sample classSubject:', data.data[0]);
             
-            const subjects = data.data.map(classSubject => {
-              const subject = classSubject.subject;
-              const subjectId = parseInt(subject.id || subject.subjectId);
-              
-              if (isNaN(subjectId)) {
-                console.warn('⚠️ Invalid subject ID:', subject);
-                return null;
-              }
-              
-              // Format giống GradeEntryPageComponent
-              return {
-                id: subjectId,
-                classId: parseInt(classId), // Lưu classId để filter (convert to int)
-                subjectCode: subject.subjectCode,
-                subjectName: subject.subjectName,
-                credits: subject.credits,
-                description: subject.description,
-                category: subject.category,
-                isRequired: subject.isRequired
-              };
-            }).filter(Boolean);
+            const subjects = data.data
+              .map(classSubject => {
+                const subject = classSubject.subject;
+                const subjectId = parseInt(subject.id || subject.subjectId);
+                
+                if (isNaN(subjectId)) {
+                  console.warn('⚠️ Invalid subject ID:', subject);
+                  return null;
+                }
+                
+                return {
+                  id: subjectId,
+                  classId: classId, // Lưu classId để filter
+                  semesterId: semesterId, // ✅ Gắn semesterId hiện tại
+                  subjectCode: subject.subjectCode,
+                  subjectName: subject.subjectName,
+                  credits: subject.credits,
+                  description: subject.description,
+                  category: subject.category,
+                  isRequired: subject.isRequired
+                };
+              })
+              .filter(Boolean);
             
-            console.log('✅ Valid subjects after processing:', subjects.length);
+            console.log(`✅ Valid subjects for class ${classId}, semester ${semesterId}:`, subjects.length);
             allSubjects.push(...subjects);
           } else {
-            console.warn('⚠️ No subjects found for class:', classId, 'or response failed');
+            console.warn(`⚠️ No subjects found for class ${classId} or response failed`);
           }
         }
         
-        // Remove duplicates based on subjectId (một môn có thể có trong nhiều lớp)
-        const uniqueSubjects = allSubjects.reduce((acc, subject) => {
-          if (!acc.find(s => s.id === subject.id)) {
+        // ✅ FIX: Remove duplicates nhưng CHỈ GIỮ LẠI các (id, classId, semesterId) từ selectedPairs hiện tại
+        // Điều này tránh trường hợp subject 3 ở semester 1 khi user chọn semester 2
+        const validSemesterClassPairs = new Set(
+          selectedPairs.map(p => `${p.classId}-${p.semesterId}`)
+        );
+        
+        const filteredSubjects = allSubjects.filter(subj => {
+          const pairKey = `${subj.classId}-${subj.semesterId}`;
+          return validSemesterClassPairs.has(pairKey);
+        });
+        
+        // Remove duplicates based on (subjectId, classId, semesterId)
+        const uniqueSubjects = filteredSubjects.reduce((acc, subject) => {
+          if (!acc.find(s => 
+            s.id === subject.id && 
+            s.classId === subject.classId && 
+            s.semesterId === subject.semesterId
+          )) {
             acc.push(subject);
           }
           return acc;
         }, []);
         
-       
+        console.log('✅ Total unique subjects loaded:', uniqueSubjects.length);
+        console.log('📋 Subjects by pair:', uniqueSubjects.map(s => `[id=${s.id}, class=${s.classId}, sem=${s.semesterId}]`).join(', '));
         setSubjects(uniqueSubjects);
       } catch (error) {
         console.error('❌ Error loading subjects:', error);
@@ -429,7 +452,7 @@ const TeacherPermissionManagement = () => {
     };
     
     loadSubjectsForPermissions();
-  }, [permissionList.map(p => p.classId).join(',')]); // Trigger khi classId thay đổi
+  }, [permissionList.map(p => `${p.semesterId}-${p.classId}`).join(',')]); // Trigger khi semesterId hoặc classId thay đổi
 
   // Update permission trong list với cascade logic
   // Pattern theo GradeEntryPageComponent: tạo object mới hoàn toàn để React nhận biết thay đổi
@@ -514,17 +537,26 @@ const TeacherPermissionManagement = () => {
     return filtered;
   };
 
-  // Lấy danh sách môn học theo lớp (từ state subjects đã được load)
-  const getFilteredSubjects = (classId) => {
-    if (!classId) return [];
+  // Lấy danh sách môn học theo lớp và học kỳ (từ state subjects đã được load)
+  // ⚠️ Phải filter theo cả classId AND semesterId để đảm bảo môn học đó có trong cả 2
+  const getFilteredSubjects = (classId, semesterId) => {
+    if (!classId || !semesterId) {
+      console.log('⚠️ Missing classId or semesterId, returning empty');
+      return [];
+    }
     
-    console.log('🔍 Filtering subjects for classId:', classId);
+    console.log(`🔍 Filtering subjects for classId: ${classId}, semesterId: ${semesterId}`);
     console.log('📋 All subjects:', subjects);
-    console.log('📋 Sample subject structure:', subjects[0]);
     
-    const filtered = subjects.filter(subj => subj.classId === parseInt(classId));
+    const classIdInt = parseInt(classId);
+    const semesterIdInt = parseInt(semesterId);
     
-    console.log('✅ Filtered subjects:', filtered.length);
+    const filtered = subjects.filter(subj => 
+      subj.classId === classIdInt && 
+      subj.semesterId === semesterIdInt
+    );
+    
+    console.log(`✅ Filtered subjects (classId=${classIdInt}, semesterId=${semesterIdInt}):`, filtered.length);
     return filtered;
   };
 
@@ -938,7 +970,7 @@ const TeacherPermissionManagement = () => {
                   <select
                     value={perm.subjectId}
                     onChange={(e) => updatePermission(index, 'subjectId', e.target.value)}
-                    disabled={!perm.classId}
+                    disabled={!perm.classId || !perm.semesterId}
                     style={{
                       width: '100%',
                       padding: '8px',
@@ -946,14 +978,14 @@ const TeacherPermissionManagement = () => {
                       border: '1px solid #ddd',
                       borderRadius: '4px',
                       marginTop: '4px',
-                      backgroundColor: !perm.classId ? '#f5f5f5' : 'white',
-                      cursor: !perm.classId ? 'not-allowed' : 'pointer'
+                      backgroundColor: !perm.classId || !perm.semesterId ? '#f5f5f5' : 'white',
+                      cursor: !perm.classId || !perm.semesterId ? 'not-allowed' : 'pointer'
                     }}
                   >
                     <option value="">
-                      {!perm.classId ? '-- Vui lòng chọn lớp trước --' : '-- Tất cả các môn --'}
+                      {!perm.classId ? '-- Vui lòng chọn lớp trước --' : !perm.semesterId ? '-- Vui lòng chọn học kỳ trước --' : '-- Tất cả các môn --'}
                     </option>
-                    {getFilteredSubjects(perm.classId).map(subj => (
+                    {getFilteredSubjects(perm.classId, perm.semesterId).map(subj => (
                       <option key={subj.id} value={subj.id}>
                         {subj.subjectName} ({subj.subjectCode})
                       </option>

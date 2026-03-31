@@ -66,8 +66,14 @@ const AdminApiController = {
         const TeacherPermissionService = (await import('../services/TeacherPermissionService.js')).default;
         subjects = await TeacherPermissionService.getPermittedSubjects(userId, classId, semesterId);
       } else {
-        // Admin được xem tất cả subjects
-        subjects = await AdminApiService.getSubjectsByClass(classId);
+        // ✅ Admin cũng phải filter theo semester để tránh lộn xộn subjects từ các semester khác
+        // Nếu semesterId được chỉ định, chỉ trả về subjects của semester đó
+        if (semesterId) {
+          subjects = await AdminApiService.getSubjectsByClassAndSemester(classId, semesterId);
+        } else {
+          // Nếu không có semesterId, trả về tất cả subjects (legacy behavior)
+          subjects = await AdminApiService.getSubjectsByClass(classId);
+        }
       }
 
       return res.json({ success: true, data: subjects });

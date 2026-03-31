@@ -3,8 +3,7 @@ import GradeRepository from '../repositories/grade.repository.js';
 const GradeApiService = {
   async getEnrolledStudents(query) {
     const { cohortId, classId, subjectId, semester = 'HK1', academicYear = '2024-25' } = query;
-    console.log('🔍 GradeApiService.getEnrolledStudents received:', { cohortId, classId, subjectId, subjectType: typeof subjectId });
-    
+   
     if (!cohortId || !classId || !subjectId) {
       const err = new Error('Thiếu thông tin cohortId, classId, hoặc subjectId');
       err.status = 400;

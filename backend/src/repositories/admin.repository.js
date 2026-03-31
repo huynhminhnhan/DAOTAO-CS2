@@ -63,6 +63,39 @@ const AdminRepository = {
     });
     
     return uniqueSubjects;
+  },
+
+  // ✅ NEW: Get subjects của class cho một semester cụ thể
+  async findSubjectsByClassAndSemester(classId, semesterId) {
+    const { Enrollment } = await import('../database/index.js');
+    
+    // Tìm tất cả subjects đã được đăng ký trong lớp này cho semester cụ thể
+    const enrollments = await Enrollment.findAll({
+      where: { 
+        classId: parseInt(classId),
+        semesterId: parseInt(semesterId)
+      },
+      include: [{ 
+        model: Subject, 
+        as: 'subject',
+        attributes: ['id', 'subjectCode', 'subjectName', 'credits', 'description', 'category', 'isRequired'] 
+      }],
+      attributes: ['subjectId'],
+      order: [['subject', 'subjectCode', 'ASC']]
+    });
+    
+    // Loại bỏ duplicate subjects bằng cách filter unique subjectId
+    const uniqueSubjects = [];
+    const seenSubjectIds = new Set();
+    
+    enrollments.forEach(enrollment => {
+      if (enrollment.subject && !seenSubjectIds.has(enrollment.subjectId)) {
+        seenSubjectIds.add(enrollment.subjectId);
+        uniqueSubjects.push(enrollment);
+      }
+    });
+    
+    return uniqueSubjects;
   }
 };
 

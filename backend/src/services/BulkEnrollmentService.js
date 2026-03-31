@@ -75,16 +75,18 @@ const BulkEnrollmentService = {
       if (semesterIdVal) {
         enrollmentData.semesterId = semesterIdVal;
       }
-  
+
+      // Unique constraint: (student_id, class_id, subject_id, attempt)
+      // Tìm kiếm bản ghi cũ chỉ dựa vào fields trong unique constraint
+      const whereClause = {
+        studentId,
+        classId: classIdVal,
+        subjectId: subjectIdVal,
+        attempt: 1
+      };
 
       const [enrollment, created] = await Enrollment.findOrCreate({
-        where: {
-          studentId,
-          classId: classIdVal,
-          subjectId: subjectIdVal,
-          ...(semesterIdVal && { semesterId: semesterIdVal }),
-          attempt: 1
-        },
+        where: whereClause,
         defaults: {
           ...enrollmentData,
           status: 'active',
@@ -100,8 +102,10 @@ const BulkEnrollmentService = {
         console.log(`ℹ️ Sinh viên ${studentId} đã đăng ký trước đó`);
       }
     } catch (error) {
+
       errors.push(`Lỗi đăng ký sinh viên ID ${studentId}: ${error.message}`);
       console.error(`❌ Lỗi đăng ký sinh viên ${studentId}:`, error.message);
+      console.error(`Lỗi chi tiết cho sinh viên ${studentId}:`, error);
     }
   }
   

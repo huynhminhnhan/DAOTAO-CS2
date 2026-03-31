@@ -57,6 +57,11 @@ const AdminApiService = {
     return AdminRepository.findSubjectsByClass(classId);
   },
 
+  // ✅ NEW: Get subjects của class cho một semester cụ thể
+  async getSubjectsByClassAndSemester(classId, semesterId) {
+    return AdminRepository.findSubjectsByClassAndSemester(classId, semesterId);
+  },
+
   async getDashboardStats() {
     const { User, Student, Class, Subject, Grade, Teacher } = await import('../database/index.js');
     const [usersCount, studentsCount, classesCount, subjectsCount, gradesCount, teachersCount] = await Promise.all([
